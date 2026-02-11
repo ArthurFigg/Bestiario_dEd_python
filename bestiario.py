@@ -19,7 +19,7 @@ def filtrar_monstros(chave, valor):
     if resposta.status_code == 200:
         todos_monstros = resposta.json().get('results', [])
         
-        # Aqui acontece a filtragem manual
+        
         resultados_filtrados = []
         for monstro in todos_monstros:
             # Comparamos o valor que está no monstro com o que o usuário quer
@@ -54,6 +54,22 @@ while True:
                 print(f"Ação: {acao['name']}")
                 print(f"Descrição: {acao['desc']}")
                 print("\n")
+            salvar_monstro = input("Deseja salvar as informações e ataques deste monstro em um arquivo csv? (s/n): ").strip().lower()
+            if salvar_monstro == 's':
+                import csv
+                with open(f"{monstro['name'].replace(' ', '_')}.csv", mode='w', newline='', encoding='utf-8') as arquivo_csv:
+                    escritor_csv = csv.writer(arquivo_csv)
+                    escritor_csv.writerow(['Nome', 'Tipo', 'Desafio', 'Descrição'])
+                    escritor_csv.writerow([monstro['name'], monstro['type'], monstro['challenge_rating'], monstro['desc']])
+                    escritor_csv.writerow([])
+                    escritor_csv.writerow(['Ação', 'Descrição'])
+                    for acao in monstro['actions']:
+                        escritor_csv.writerow([acao['name'], acao['desc']])
+                print(f"Informações do monstro {monstro['name']} salvas com sucesso em {monstro['name'].replace(' ', '_')}.csv")
+            
+            
+
+            
         else:
             print("Monstro não encontrado.")
 
@@ -64,6 +80,19 @@ while True:
             print(f"Monstros do tipo {tipo}:")
             for monstro in monstros:
                 print(f"- {monstro['name']} (Desafio: {monstro['challenge_rating']})")
+            salvar_monstro = input("Deseja salvar as informações e ataques destes monstros em um arquivo csv? (s/n): ").strip().lower()
+            if salvar_monstro == 's':
+                import csv
+                with open(f"monstros_tipo_{tipo}.csv", mode='w', newline='', encoding='utf-8') as arquivo_csv:
+                    escritor_csv = csv.writer(arquivo_csv)
+                    escritor_csv.writerow(['Nome', 'Tipo', 'Desafio', 'Descrição'])
+                    for monstro in monstros:
+                        escritor_csv.writerow([monstro['name'], monstro['type'], monstro['challenge_rating'], monstro['desc']])
+                        escritor_csv.writerow([])
+                        escritor_csv.writerow(['Ação', 'Descrição'])
+                        for acao in monstro['actions']:
+                            escritor_csv.writerow([acao['name'], acao['desc']])
+                print(f"Informações dos monstros do tipo {tipo} salvas com sucesso em monstros_tipo_{tipo}.csv")
         else:
             print("Nenhum monstro encontrado desse tipo.")
 
@@ -74,6 +103,19 @@ while True:
             print(f"Monstros com desafio {desafio}:")
             for monstro in monstros:
                 print(f"- {monstro['name']} (Tipo: {monstro['type']})")
+            salvar_monstro = input("Deseja salvar as informações e ataques destes monstros em um arquivo csv? (s/n): ").strip().lower()
+            if salvar_monstro == 's':
+                import csv
+                with open(f"monstros_desafio_{desafio.replace('/', '_')}.csv", mode='w', newline='', encoding='utf-8') as arquivo_csv:
+                    escritor_csv = csv.writer(arquivo_csv)
+                    escritor_csv.writerow(['Nome', 'Tipo', 'Desafio', 'Descrição'])
+                    for monstro in monstros:
+                        escritor_csv.writerow([monstro['name'], monstro['type'], monstro['challenge_rating'], monstro['desc']])
+                        escritor_csv.writerow([])
+                        escritor_csv.writerow(['Ação', 'Descrição'])
+                        for acao in monstro['actions']:
+                            escritor_csv.writerow([acao['name'], acao['desc']])
+                print(f"Informações dos monstros com desafio {desafio} salvas com sucesso em monstros_desafio_{desafio.replace('/', '_')}.csv")
         else:
             print("Nenhum monstro encontrado com esse desafio.")
 
@@ -96,8 +138,3 @@ while True:
 
     else:
         print("Opção inválida. Tente novamente.")
-
-
-
-
-
