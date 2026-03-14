@@ -1,43 +1,49 @@
 import requests
+from banco_de_dados import criar_base_de_dados, registrar_monstro
 
 def buscar_monstro(nome):
-
     nome = nome.lower().strip().replace(" ", "-")
     url = f"https://api.open5e.com/monsters/{nome}/"
-
     resposta = requests.get(url)
     if resposta.status_code == 200:
-        monstro = resposta.json()
-        return monstro
-    else:
-        return None
-    
+        return resposta.json()
+    return None
+
 def filtrar_monstros(chave, valor):
-    url_base = "https://api.open5e.com/monsters/" 
-    resposta = requests.get(url_base) # Buscamos a lista geral (Página 1)
-    
-    if resposta.status_code == 200:
-        todos_monstros = resposta.json().get('results', [])
-        
-        
-        resultados_filtrados = []
-        for monstro in todos_monstros:
-            # Comparamos o valor que está no monstro com o que o usuário quer
-            if str(monstro.get(chave)).lower() in str(valor).lower():
-                resultados_filtrados.append(monstro)
-        
-        return resultados_filtrados
-    return []
+    url_atual = "https://api.open5e.com/monsters/"
+    resultados_filtrados = []
+    while url_atual:
+        resposta = requests.get(url_atual)
+        if resposta.status_code == 200:
+            dados = resposta.json()
+            for monstro in dados.get('results', []):
+                if str(monstro.get(chave)).lower() in str(valor).lower():
+                    resultados_filtrados.append(monstro)
+            url_atual = dados.get('next')
+        else:
+            break
+    return resultados_filtrados
 
+def sincronizar_base_completa(conexao):
+    url_atual = "https://api.open5e.com/monsters/"
+    while url_atual:
+        resposta = requests.get(url_atual)
+        if resposta.status_code == 200:
+            dados = resposta.json()
+            for monstro in dados.get('results', []):
+                registrar_monstro(conexao, monstro)
+            url_atual = dados.get('next')
+        else:
+            break
 
+conexao_db = criar_base_de_dados()
 
 while True:
-    print("Bem-vindo ao Bestiário de D&D 5e!")
-    print("Como você deseja buscar um monstro?")
-    print("1. Buscar por nome")
-    print("2. Buscar por tipo")
-    print("3. Buscar por desafio")
-    print("4. Ver todos os monstros")
+    print("\nBem-vindo ao Bestiário de D&D 5e!")
+    print("1. Buscar e registrar por nome")
+    print("2. Buscar por tipo (Pesquisa completa)")
+    print("3. Buscar por desafio (Pesquisa completa)")
+    print("4. Sincronizar base completa no SQL")
     print("5. Sair")
     opcao = input("Digite o número da opção desejada: ")
 
@@ -48,93 +54,33 @@ while True:
             print(f"Nome: {monstro['name']}")
             print(f"Tipo: {monstro['type']}")
             print(f"Desafio: {monstro['challenge_rating']}")
-            print(f"Descrição: {monstro['desc']}")
-            print("\n---Ações e Ataques---")
-            for acao in monstro['actions']:
-                print(f"Ação: {acao['name']}")
-                print(f"Descrição: {acao['desc']}")
-                print("\n")
-            salvar_monstro = input("Deseja salvar as informações e ataques deste monstro em um arquivo csv? (s/n): ").strip().lower()
-            if salvar_monstro == 's':
-                import csv
-                with open(f"{monstro['name'].replace(' ', '_')}.csv", mode='w', newline='', encoding='utf-8') as arquivo_csv:
-                    escritor_csv = csv.writer(arquivo_csv)
-                    escritor_csv.writerow(['Nome', 'Tipo', 'Desafio', 'Descrição'])
-                    escritor_csv.writerow([monstro['name'], monstro['type'], monstro['challenge_rating'], monstro['desc']])
-                    escritor_csv.writerow([])
-                    escritor_csv.writerow(['Ação', 'Descrição'])
-                    for acao in monstro['actions']:
-                        escritor_csv.writerow([acao['name'], acao['desc']])
-                print(f"Informações do monstro {monstro['name']} salvas com sucesso em {monstro['name'].replace(' ', '_')}.csv")
-            
-            
-
-            
+            registrar_monstro(conexao_db, monstro)
+            print("Monstro registrado com sucesso.")
         else:
             print("Monstro não encontrado.")
 
     elif opcao == "2":
-        tipo = input("Digite o tipo do monstro (ex: dragon, undead, beast, etc.): ").strip().lower()
+        tipo = input("Digite o tipo do monstro: ").strip().lower()
         monstros = filtrar_monstros('type', tipo)
         if monstros:
-            print(f"Monstros do tipo {tipo}:")
             for monstro in monstros:
                 print(f"- {monstro['name']} (Desafio: {monstro['challenge_rating']})")
-            salvar_monstro = input("Deseja salvar as informações e ataques destes monstros em um arquivo csv? (s/n): ").strip().lower()
-            if salvar_monstro == 's':
-                import csv
-                with open(f"monstros_tipo_{tipo}.csv", mode='w', newline='', encoding='utf-8') as arquivo_csv:
-                    escritor_csv = csv.writer(arquivo_csv)
-                    escritor_csv.writerow(['Nome', 'Tipo', 'Desafio', 'Descrição'])
-                    for monstro in monstros:
-                        escritor_csv.writerow([monstro['name'], monstro['type'], monstro['challenge_rating'], monstro['desc']])
-                        escritor_csv.writerow([])
-                        escritor_csv.writerow(['Ação', 'Descrição'])
-                        for acao in monstro['actions']:
-                            escritor_csv.writerow([acao['name'], acao['desc']])
-                print(f"Informações dos monstros do tipo {tipo} salvas com sucesso em monstros_tipo_{tipo}.csv")
         else:
-            print("Nenhum monstro encontrado desse tipo.")
+            print("Nenhum monstro encontrado.")
 
     elif opcao == "3":
-        desafio = input("Digite o desafio do monstro (ex: 1/4, 1, 2, etc.): ").strip()
+        desafio = input("Digite o desafio: ").strip()
         monstros = filtrar_monstros('challenge_rating', desafio)
         if monstros:
-            print(f"Monstros com desafio {desafio}:")
             for monstro in monstros:
                 print(f"- {monstro['name']} (Tipo: {monstro['type']})")
-            salvar_monstro = input("Deseja salvar as informações e ataques destes monstros em um arquivo csv? (s/n): ").strip().lower()
-            if salvar_monstro == 's':
-                import csv
-                with open(f"monstros_desafio_{desafio.replace('/', '_')}.csv", mode='w', newline='', encoding='utf-8') as arquivo_csv:
-                    escritor_csv = csv.writer(arquivo_csv)
-                    escritor_csv.writerow(['Nome', 'Tipo', 'Desafio', 'Descrição'])
-                    for monstro in monstros:
-                        escritor_csv.writerow([monstro['name'], monstro['type'], monstro['challenge_rating'], monstro['desc']])
-                        escritor_csv.writerow([])
-                        escritor_csv.writerow(['Ação', 'Descrição'])
-                        for acao in monstro['actions']:
-                            escritor_csv.writerow([acao['name'], acao['desc']])
-                print(f"Informações dos monstros com desafio {desafio} salvas com sucesso em monstros_desafio_{desafio.replace('/', '_')}.csv")
         else:
-            print("Nenhum monstro encontrado com esse desafio.")
+            print("Nenhum monstro encontrado.")
 
     elif opcao == "4":
-        url_base = "https://api.open5e.com/monsters/"
-        resposta = requests.get(url_base, timeout=5)
-
-        if resposta.status_code == 200:
-            todos_monstros = resposta.json().get('results', [])
-            print("Lista de todos os monstros:")
-            for monstro in todos_monstros:
-                print(f"- {monstro['name']} (Tipo: {monstro['type']}, "
-                      f"Desafio: {monstro['challenge_rating']})")
-        else:
-            print("Não foi possível recuperar a lista de monstros.")
+        print("Sincronizando... Isso pode demorar alguns minutos.")
+        sincronizar_base_completa(conexao_db)
+        print("Banco de dados atualizado com sucesso.")
 
     elif opcao == "5":
-        print("Saindo do Bestiário. Até logo!")
         break
-
-    else:
-        print("Opção inválida. Tente novamente.")
