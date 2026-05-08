@@ -60,8 +60,6 @@ def registrar_monstro(conexao, monstro):
         monstro.get('charisma')
     ))
 
-    # Criamos uma lista única com todos os tipos de ações possíveis
-    # Isso ajuda a reduzir os campos NULL que você viu
     todas_acoes = []
     for categoria in ['actions', 'special_abilities', 'legendary_actions', 'reactions']:
         lista_categoria = monstro.get(categoria)
@@ -75,12 +73,12 @@ def registrar_monstro(conexao, monstro):
         dano = acao.get('damage_dice')
 
         if bonus is None:
-            busca_ataque = re.search(r"\+([0-9]+) to hit", desc)
+            busca_ataque = re.search(r"([+\-]\d+) to hit", desc)
             if busca_ataque:
                 bonus = int(busca_ataque.group(1))
-        
+
         if dano is None:
-            busca_dano = re.search(r"\(([0-9]+d[0-9]+(?: \+ [0-9]+)?)\)", desc)
+            busca_dano = re.search(r"\((\d+d\d+(?:\s*[+\-]\s*\d+)?)\)", desc)
             if busca_dano:
                 dano = busca_dano.group(1)
 
