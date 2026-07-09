@@ -12,7 +12,7 @@ def criar_base_de_dados():
             tipo TEXT,
             classe_armadura INTEGER,
             pontos_vida INTEGER,
-            nivel_desafio TEXT,
+            nivel_desafio REAL,
             forca INTEGER,
             destreza INTEGER,
             constituicao INTEGER,
@@ -51,7 +51,7 @@ def registrar_monstro(conexao, monstro):
         monstro.get('type'),
         monstro.get('armor_class'), 
         monstro.get('hit_points'), 
-        monstro.get('challenge_rating'),
+        monstro.get('cr'),
         monstro.get('strength'), 
         monstro.get('dexterity'), 
         monstro.get('constitution'),
@@ -59,6 +59,8 @@ def registrar_monstro(conexao, monstro):
         monstro.get('wisdom'), 
         monstro.get('charisma')
     ))
+
+    cursor.execute("DELETE FROM acoes WHERE monstro_nome = ?", (monstro.get('name'),))
 
     todas_acoes = []
     for categoria in ['actions', 'special_abilities', 'legendary_actions', 'reactions']:
@@ -77,7 +79,11 @@ def registrar_monstro(conexao, monstro):
             if busca_ataque:
                 bonus = int(busca_ataque.group(1))
 
-        if dano is None:
+        damage_bonus = acao.get('damage_bonus')
+        if dano is not None and damage_bonus:
+            sinal = "+" if damage_bonus > 0 else "-"
+            dano = f"{dano} {sinal} {abs(damage_bonus)}"
+        elif dano is None:
             busca_dano = re.search(r"\((\d+d\d+(?:\s*[+\-]\s*\d+)?)\)", desc)
             if busca_dano:
                 dano = busca_dano.group(1)

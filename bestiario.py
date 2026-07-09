@@ -3,7 +3,7 @@ from banco_de_dados import criar_base_de_dados, registrar_monstro
 
 def buscar_monstro(nome):
     nome = nome.lower().strip().replace(" ", "-")
-    url = f"https://api.open5e.com/monsters/{nome}/"
+    url = f"https://api.open5e.com/v1/monsters/{nome}/"
     try:
         resposta = requests.get(url, timeout=10)
     except requests.exceptions.RequestException:
@@ -14,7 +14,7 @@ def buscar_monstro(nome):
     return None
 
 def filtrar_monstros(chave, valor):
-    url_atual = "https://api.open5e.com/monsters/"
+    url_atual = "https://api.open5e.com/v1/monsters/"
     resultados_filtrados = []
     while url_atual:
         try:
@@ -33,7 +33,7 @@ def filtrar_monstros(chave, valor):
     return resultados_filtrados
 
 def sincronizar_base_completa(conexao):
-    url_atual = "https://api.open5e.com/monsters/"
+    url_atual = "https://api.open5e.com/v1/monsters/"
     while url_atual:
         try:
             resposta = requests.get(url_atual, timeout=10)
