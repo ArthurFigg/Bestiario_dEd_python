@@ -224,6 +224,54 @@ python bestiario.py
 python analise_bestiario.py
 ```
 
+## Setup do ambiente
+
+**Python:** 3.13 — penúltima estável (N-1); 3.14 é a mais recente e o projeto
+não usa recurso exclusivo dela, então 3.13 dá o piso mais compatível para
+pandas. O `uv` baixa o interpretador gerenciado, independente do que há na máquina.
+
+**Comandos de execucao:**
+```bash
+uv init --python 3.13
+uv add requests>=2.32,<3.0 pandas>=2.2,<3.0 tabulate>=0.9,<1.0
+uv add --dev pytest>=8.0,<9.0
+```
+
+**Pastas a criar:**
+```bash
+mkdir -p bestiario tests
+touch bestiario/__init__.py
+```
+
+**Conteudo do `.env.example`:**
+```
+nenhuma
+```
+(A API Open5e é gratuita e sem autenticação — não há variável de ambiente
+agora. A tradução via Grok, planejada para a Spec 7 futura, trará uma chave
+quando for especificada.)
+
+**Dependencias que ficam de fora agora** (entram quando a spec chegar):
+- nenhuma — a Spec 1 (fundação) já move `cliente_api.py` (requests),
+  `relatorios.py` (pandas + tabulate) e `banco.py` (sqlite3, stdlib), então
+  as três deps de produção são necessárias desde o início.
+- Specs 2-6 não introduzem dependências novas (SQLite é stdlib).
+- Front-end web + cliente Grok para tradução: Spec 7 (futura, ainda não especificada).
+
+**CI — `.github/workflows/tests.yml`:**
+```yaml
+name: Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync
+      - run: uv run pytest -v
+```
+
 ## API Open5e — referência rápida
 
 ```
@@ -324,6 +372,16 @@ percorrendo os 325 monstros do SRD 2014 via `?document__key=srd-2014`):
 - Cobertura das tabelas ricas no SRD: 322/325 com ambiente, 160 com
   resistência/imunidade — todos os relatórios da Spec 6 nascem com dado real.
 
-**Próximo passo (retomar aqui):** rodar `/planejar-setup` (deps + estrutura,
-documenta no CLAUDE.md sem executar), depois executar o setup e implementar
-spec por spec na ordem 1→6, fechando cada uma com `/spec-close`.
+**Setup executado (fim da sessão):** `/planejar-setup` documentou a seção
+"Setup do ambiente" e o setup foi rodado — `uv init --python 3.13`
+(Python 3.13.12), `uv add` das 3 deps de produção (requests 2.34.2,
+pandas 2.3.3, tabulate 0.10.0) + `pytest 8.4.2` como dev, pacote `bestiario/`
+(com `__init__.py`) e `tests/` criados. `.gitignore` ganhou `.venv/` e
+`.pytest_cache/`. `main.py` é o placeholder do `uv init` (será substituído
+pelo menu na Spec 1). `pytest` roda (sem testes ainda).
+
+**Próximo passo (retomar aqui):** implementar a **Spec 1 (fundacao)** —
+mover o código flat (`bestiario.py`, `banco_de_dados.py`,
+`analise_bestiario.py`) para os módulos do pacote `bestiario/` preservando o
+comportamento (ainda v1), com os testes; fechar com `/spec-close`. Depois
+seguir a ordem 2→6.
