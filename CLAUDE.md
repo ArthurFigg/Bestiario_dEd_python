@@ -99,16 +99,32 @@ todas unificadas na mesma tabela com INSERT sem distinção de categoria.
 - [ ] **Sem testes automatizados**.
 - [ ] **Sem `requirements.txt`**: dependências não estão documentadas formalmente.
 
-## Próximas melhorias planejadas (em ordem de prioridade sugerida)
+## Próximas melhorias planejadas — status (specs)
 
-1. **Enriquecer o schema** — adicionar colunas para imunidades, resistências,
-   vulnerabilidades, imunidades a condições, ambientes, alinhamento, sentidos,
-   velocidade e saving throws — fazendo uma coluna por vez para facilitar testes
-2. **Adicionar coluna `categoria_acao`** na tabela `acoes` e capturar `bonus_actions`
-3. **Consulta local primeiro** — checar o banco antes de chamar a API
-4. **Criar `requirements.txt`**
-5. **Expandir relatórios** — análises por ambiente, comparação entre tipos, etc.
-6. **Front-end web** — Flask ou FastAPI + HTML simples para pesquisa sem terminal
+As melhorias abaixo foram especificadas no conjunto de 6 specs em
+`.claude/specs/` (todas com `Revisão: aprovada` após o `/spec-review` da
+Sessão 5). Implementação ainda não iniciada — ordem em "Plano de 6 specs".
+
+1. **Enriquecer o schema** (imunidades, resistências, vulnerabilidades,
+   imunidades a condições, ambientes, alinhamento, sentidos, velocidade,
+   saves) → **Spec 3** (`schema_e_ingestao_monstro`) — aprovada.
+2. **Coluna de categoria em `acoes` + capturar categorias de ação** →
+   **Spec 4** (`extracao_acoes_ataques`) — aprovada. Ressalva empírica:
+   `BONUS_ACTION` não existe no SRD 2014 (0 de 944 ações); a categoria cobre
+   `action`/`legendary_action`/`reaction`/`special_ability`.
+3. **Consulta local primeiro** → **Spec 6** (`relatorios_e_consulta_local`) —
+   aprovada. Decisão: local primeiro, com a API v2 como fallback.
+4. **Documentar dependências** → resolvido de forma diferente: `uv` +
+   `pyproject.toml` com teto de versão na **Spec 1** (`fundacao`), em vez de
+   `requirements.txt` (regra do CLAUDE.md global).
+5. **Expandir relatórios** (por ambiente, comparação entre tipos, imunidade/
+   resistência a dano, condições impostas) → **Spec 6** — aprovada.
+6. **Front-end web** — ainda **não especificado**; segue como passo futuro
+   (junto da tradução PT-BR, planejada como Spec 7 — ver Sessão 4).
+
+Não mapeadas 1:1 na lista antiga, mas parte do plano: **Spec 2**
+(migração para a API v2, SRD 2014) e **Spec 5** (extração de efeitos —
+save DC, condição, área; parte lossy isolada).
 
 ## Histórico de sessões
 
@@ -216,3 +232,98 @@ GET https://api.open5e.com/v1/monsters/{slug}/  # monstro específico
 Paginação: campo "next" no JSON com a URL da próxima página
 Sem autenticação necessária
 ```
+
+### Sessao 4 — 2026-07-16
+
+**Decisao macro:** reconstrucao da camada de dados para "tudo virar dado
+analisavel" (cada ataque, efeito, tipo de dano, DC de save vira campo
+consultavel, nao texto livre). Diagnostico da sessao: a tabela `monstros`
+ja estava 100% preenchida e os NULLs em `acoes` (bonus_ataque/dados_dano)
+eram legitimos (habilidades passivas) — a regex atual acerta 100% dos casos
+com dano real. O ganho de verdade e enriquecer o schema e estruturar
+ataques/efeitos.
+
+**Decisoes de arquitetura tomadas:**
+1. **Migrar da API v1 para a v2** (`/v2/creatures/`) — a v2 entrega sentidos,
+   saves, resistencias, velocidade e ataques ja estruturados.
+2. **Apenas SRD 2014** (`document__key=srd-2014`, ~325 monstros). A v2 mistura
+   ~10 fontes (SRD, A5E, Tome of Beasts, etc.) e repete o mesmo monstro entre
+   elas; restringir ao SRD oficial elimina duplicatas e mantem `nome` como
+   PRIMARY KEY. (Atencao: isso e MENOS que os 2319 atuais — troca quantidade
+   por qualidade/riqueza.)
+3. **Extracao hibrida**: usa os campos estruturados da v2 + regex no `desc`
+   como gabarito (a conversao v2 tem erros/omissoes nos ataques — ex: dano de
+   fogo secundario faltando, damage_type errado).
+4. **Schema relacional normalizado**: monstros + acoes + ataques + efeitos +
+   tabelas de lista (monstro_interacao_dano com coluna `relacao`,
+   monstro_imunidade_condicao, monstro_ambiente, monstro_pericia). ~9 tabelas.
+5. **Traducao PT-BR** e passo FUTURO, so no front-end (Spec 7): dict estatico
+   para vocabulario controlado + Grok (tier gratuito) para texto livre. Banco
+   e terminal ficam em ingles. Ver memoria `traducao-camada-frontend`.
+6. **Banco e artefato regeneravel**: migracao = apagar `bestiario_combate.db`
+   uma vez e re-sincronizar com o schema novo.
+
+**Plano de 6 specs (criterio: menor pedaco testavel autonomamente):**
+1. Fundacao (uv + pyproject + reestrutura em pacote `bestiario/`, entrada
+   vira `main.py`) — v1 preservado
+2. Cliente API v2 (SRD 2014)
+3. Novo schema + ingestao dos campos do monstro
+4. Extracao de acoes + ataques (nucleo hibrido) — PROXIMA
+5. Extracao de efeitos (save DC, condicao, area — parte lossy, isolada)
+6. Relatorios + consulta local primeiro
+
+**Feito nesta sessao:** specs 1, 2 e 3 criadas em `.claude/specs/`
+(`fundacao.md`, `cliente_api_v2.md`, `schema_e_ingestao_monstro.md`), todas
+com `Revisao: pendente`. Nenhum codigo implementado ainda.
+
+**Proximo passo (retomar aqui):** criar as specs 4, 5 e 6 (rodar `/spec`),
+depois `/spec-review` no conjunto (obrigatorio antes de implementar), depois
+executar setup e implementar spec por spec. Ha um hook de gate ativo que
+bloqueia implementacao enquanto houver specs com revisao pendente.
+
+### Sessão 5 — 2026-07-16
+
+**O que foi feito nesta sessão:**
+
+1. **Specs 4, 5 e 6 criadas** (`/spec`): `extracao_acoes_ataques.md`,
+   `extracao_efeitos.md`, `relatorios_e_consulta_local.md`. Completam o plano
+   de 6 specs iniciado na Sessão 4.
+2. **`/spec-review` do conjunto** — 6 verificadores em paralelo, checando cada
+   spec contra o CLAUDE.md e contra as demais. Resultado: nenhum conflito de
+   contrato entre specs (interfaces de tabelas/colunas batem); dependências
+   confirmam a ordem numérica (dados → extração → apresentação).
+3. **Correção aplicada**: a Spec 4 não populava `ataques.nome_ataque` (coluna
+   do schema da Spec 3, ficaria sempre NULL). Ajustada para preencher a partir
+   de `attacks[].name`.
+4. **Decisão de nomenclatura** (afetou Specs 3-6): as colunas de combate que
+   estavam em inglês foram traduzidas para consistência com o resto do schema
+   (que é em português) e com a regra global de idioma —
+   `to_hit`→`bonus_ataque`, `save_dc`→`cd_resistencia`,
+   `save_atributo`→`atributo_resistencia`. Valores de dado seguem em inglês
+   canônico da API (`fire`, `prone`, `dexterity`), conforme decidido na Sessão 4.
+5. **Todas as 6 specs marcadas `Revisão: aprovada`** — gate de implementação
+   destravado.
+
+**Diagnósticos empíricos da API v2 que embasaram as specs** (verificados
+percorrendo os 325 monstros do SRD 2014 via `?document__key=srd-2014`):
+- A conversão estruturada de ataques da v2 é **não confiável para dano**:
+  `damage_type` vem ~99% como `"thunder"` (lixo constante) e `damage_bonus`
+  ~99% `null`. Confiáveis: `to_hit_mod`, `reach`, `range`, `attack_type`,
+  `damage_die_count`/`type`. Por isso a extração híbrida usa o **`desc` como
+  gabarito do dano** (regex parseia o bloco "Hit:" inteiro) e o estruturado
+  só para acerto/alcance.
+- O array `attacks[]` estruturado **sinaliza 100% dos ataques** (0 ações com
+  `attacks: []` e "to hit" no `desc`) — serve de enumerador; a regex só corrige.
+- As 18 ações "Melee or Ranged" viram 2 linhas em `ataques` (a v2 já as separa
+  em 2 entradas de `attacks[]`).
+- `action_type` no SRD 2014: `ACTION`, `LEGENDARY_ACTION`, `REACTION` (sem
+  `BONUS_ACTION`); `traits` é campo separado (habilidades passivas).
+- **Save/condição/área não têm nenhum campo estruturado** na v2 — 100% regex
+  no `desc` (por isso a Spec 5 é a parte "lossy"). No SRD: 208 ações com save,
+  266 com algum efeito, 54 com 2+ condições, ~96 emanações "within X ft".
+- Cobertura das tabelas ricas no SRD: 322/325 com ambiente, 160 com
+  resistência/imunidade — todos os relatórios da Spec 6 nascem com dado real.
+
+**Próximo passo (retomar aqui):** rodar `/planejar-setup` (deps + estrutura,
+documenta no CLAUDE.md sem executar), depois executar o setup e implementar
+spec por spec na ordem 1→6, fechando cada uma com `/spec-close`.
