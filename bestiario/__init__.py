@@ -6,7 +6,7 @@ from bestiario.cliente_api import (
     filtrar_monstros,
     sincronizar_base_completa,
 )
-from bestiario.extracao import extrair_bonus_ataque, extrair_dados_dano
+from bestiario.extracao import extrair_ataque
 from bestiario.relatorios import gerar_relatorio_perfeito
 
 __all__ = [
@@ -15,7 +15,6 @@ __all__ = [
     "buscar_monstro",
     "filtrar_monstros",
     "sincronizar_base_completa",
-    "extrair_bonus_ataque",
-    "extrair_dados_dano",
+    "extrair_ataque",
     "gerar_relatorio_perfeito",
 ]

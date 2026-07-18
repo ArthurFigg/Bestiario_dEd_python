@@ -65,13 +65,17 @@ Enriquecida com:
 - `monstro_ambiente` (id PK, monstro_nome FK, `ambiente`)
 - `monstro_pericia` (id PK, monstro_nome FK, `pericia`, `bonus`)
 
-### Tabelas de combate (criadas vazias; populadas nas Specs 4-5)
-- `acoes` (id PK, monstro_nome FK, `categoria`, `nome_acao`, `descricao`)
+### Tabelas de combate (`acoes`/`ataques` populadas na Spec 4; `efeitos` na Spec 5)
+- `acoes` (id PK, monstro_nome FK, `categoria`, `nome_acao`, `descricao`) —
+  `categoria` = `action`|`legendary_action`|`reaction` (de `action_type`) ou
+  `special_ability` (de `traits`); `BONUS_ACTION` não existe no SRD 2014.
 - `ataques` (id PK, acao_id FK, `nome_ataque`, `tipo_ataque`, `bonus_ataque`,
   `alcance`, `alcance_longo`, `dano_dado`, `dano_bonus`, `dano_tipo`,
-  `dano_extra_dado`, `dano_extra_bonus`, `dano_extra_tipo`)
+  `dano_extra_dado`, `dano_extra_bonus`, `dano_extra_tipo`) — extração híbrida:
+  `attacks[]` estruturado enumera os ataques (acerto/alcance), regex do `desc` é
+  o gabarito do dano; fallback para `damage_die_count`/`type` se a regex falha.
 - `efeitos` (id PK, acao_id FK, `cd_resistencia`, `atributo_resistencia`,
-  `condicao`, `area_tipo`, `area_tamanho`)
+  `condicao`, `area_tipo`, `area_tamanho`) — criada vazia; populada na Spec 5.
 
 Idempotência: `INSERT OR REPLACE` em `monstros`; `DELETE` das linhas de lista do
 monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
@@ -82,8 +86,9 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
 - [x] Filtro por tipo ou CR percorrendo todas as páginas da API
 - [x] Sincronização completa da API para o banco local (opção 4 do menu)
 - [x] Inserção com `INSERT OR REPLACE` — re-rodar não duplica
-- [x] Extração de `bonus_ataque` e `dados_dano` via regex quando a API não retorna direto
-- [x] `dados_dano` combina `damage_dice` + `damage_bonus` da API (ex: "1d6 + 2")
+- [x] População de `acoes` (com coluna `categoria`) e `ataques` via extração
+  híbrida — array `attacks[]` estruturado como enumerador + regex do `desc` como
+  gabarito do dano; fallback para o estruturado quando a regex falha (Spec 4)
 - [x] Relatórios básicos: top 5 mais resistentes, top 5 ataques, letalidade por tipo
 - [x] Git configurado e com histórico
 - [x] Guard `if __name__ == "__main__"` em `bestiario.py` — menu não roda ao importar
@@ -104,9 +109,10 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
   resistências/vulnerabilidades a dano, imunidades a condição, ambientes,
   alinhamento, sentidos, velocidade, saves e perícias agora são persistidos
   (tabela `monstros` enriquecida + 4 tabelas de lista normalizadas).
-- [ ] **Categoria das ações não é salva**: todas as ações vão para a mesma
-  tabela sem coluna indicando se é `action`, `legendary_action`, etc.
-  Além disso, `bonus_actions` não é capturado nem como categoria.
+- [x] ~~**Categoria das ações não é salva**~~ — **resolvido na Spec 4**: a coluna
+  `categoria` de `acoes` é populada (`action`/`legendary_action`/`reaction` de
+  `action_type` + `special_ability` de `traits`). `BONUS_ACTION` não existe no
+  SRD 2014 (0 de 944 ações), então não é previsto.
 - [ ] **Sem pesquisa no banco local**: todas as buscas de tipo/CR vão para a
   API mesmo depois de sincronizar. Deveria consultar o SQLite primeiro.
 - [ ] **Sem front-end**: a interface é 100% terminal.

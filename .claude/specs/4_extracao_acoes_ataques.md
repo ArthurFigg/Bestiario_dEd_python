@@ -81,3 +81,6 @@ Seção adicionada retroativamente (spec anterior à regra "spec declara e /spec
 - O que está incompleto ou pode melhorar → item "Categoria das ações não é salva" resolvido: coluna `categoria` populada (`action`/`legendary_action`/`reaction`/`special_ability`; `BONUS_ACTION` não existe no SRD 2014).
 - O que já funciona → adicionar população de `acoes` (com `categoria`) e `ataques` via extração híbrida (array `attacks[]` estruturado como enumerador + regex do `desc` como gabarito do dano; fallback para o estruturado quando a regex falha).
 - Schema do banco de dados → garantir que a observação antiga "Ações abrangem `actions`/`special_abilities`/`legendary_actions`/`reactions` — todas unificadas na mesma tabela sem distinção de categoria" não sobreviva (agora há `categoria` e os ataques ficam em tabela própria). Se a Spec 3 já reescreveu a seção, aqui é só conferir.
+
+---
+**Status:** concluida em 2026-07-18

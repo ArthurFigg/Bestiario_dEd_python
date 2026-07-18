@@ -58,6 +58,74 @@ def _adult_red_dragon():
             {"name": "Mountain", "key": "mountain"},
         ],
         "skill_bonuses": {"perception": 13, "stealth": 6},
+        "actions": [
+            {
+                "name": "Bite",
+                "action_type": "ACTION",
+                "desc": (
+                    "Melee Weapon Attack: +14 to hit, reach 10 ft., one target. "
+                    "Hit: 19 (2d10 + 8) piercing damage plus 7 (2d6) fire damage."
+                ),
+                "attacks": [
+                    {
+                        "name": "Bite attack",
+                        "to_hit_mod": 14,
+                        "reach": 10,
+                        "range": None,
+                        "long_range": None,
+                        "damage_die_count": 2,
+                        "damage_die_type": "D10",
+                    }
+                ],
+            },
+            {
+                "name": "Multiattack",
+                "action_type": "ACTION",
+                "desc": "The dragon makes three attacks.",
+                "attacks": [],
+            },
+        ],
+        "traits": [
+            {
+                "name": "Legendary Resistance (3/Day)",
+                "desc": "If the dragon fails a saving throw, it succeeds instead.",
+            }
+        ],
+    }
+
+
+def _guarda_com_spear():
+    """Fixture mínima para o caso 'Melee or Ranged' (attacks[] com 2 entradas)."""
+    return {
+        "name": "Guarda de Teste",
+        "size": {"key": "medium"},
+        "type": {"key": "humanoid"},
+        "actions": [
+            {
+                "name": "Spear",
+                "action_type": "ACTION",
+                "desc": (
+                    "Melee or Ranged Weapon Attack: +3 to hit, reach 5 ft. or "
+                    "range 20/60 ft., one target. Hit: 4 (1d6 + 1) piercing damage."
+                ),
+                "attacks": [
+                    {
+                        "name": "Spear Melee attack",
+                        "to_hit_mod": 3,
+                        "reach": 5,
+                        "range": 20,
+                        "long_range": 60,
+                    },
+                    {
+                        "name": "Spear Ranged attack",
+                        "to_hit_mod": 3,
+                        "reach": None,
+                        "range": 20,
+                        "long_range": 60,
+                    },
+                ],
+            }
+        ],
     }
 
 
@@ -148,13 +216,10 @@ def test_reingestao_nao_duplica_linhas_de_lista(conexao):
     assert cursor.fetchone()[0] == 2
 
 
-def test_tabelas_de_combate_ficam_vazias_apos_ingestao(conexao):
+def test_efeitos_fica_vazia_apos_ingestao(conexao):
+    # acoes/ataques passam a ser populadas na Spec 4; efeitos só na Spec 5.
     registrar_monstro(conexao, _adult_red_dragon())
-    cursor = conexao.cursor()
-    total = sum(
-        cursor.execute(f"SELECT COUNT(*) FROM {tabela}").fetchone()[0]
-        for tabela in ("acoes", "ataques", "efeitos")
-    )
+    total = conexao.execute("SELECT COUNT(*) FROM efeitos").fetchone()[0]
     assert total == 0
 
 
@@ -170,3 +235,73 @@ def test_fk_rejeita_linha_de_lista_orfa(conexao):
             "INSERT INTO monstro_ambiente (monstro_nome, ambiente) VALUES (?, ?)",
             ("Monstro Inexistente", "hills"),
         )
+
+
+def test_action_vira_acao_com_categoria(conexao):
+    registrar_monstro(conexao, _adult_red_dragon())
+    linha = conexao.execute(
+        "SELECT categoria FROM acoes WHERE monstro_nome = ? AND nome_acao = ?",
+        ("Adult Red Dragon", "Bite"),
+    ).fetchone()
+    assert linha == ("action",)
+
+
+def test_action_bite_popula_ataques_com_dano_do_desc(conexao):
+    registrar_monstro(conexao, _adult_red_dragon())
+    linha = conexao.execute(
+        "SELECT a.nome_ataque, a.bonus_ataque, a.alcance, a.dano_dado, a.dano_bonus, "
+        "a.dano_tipo, a.dano_extra_dado, a.dano_extra_tipo "
+        "FROM ataques a JOIN acoes ac ON a.acao_id = ac.id "
+        "WHERE ac.monstro_nome = ? AND ac.nome_acao = ?",
+        ("Adult Red Dragon", "Bite"),
+    ).fetchone()
+    assert linha == ("Bite attack", 14, 10, "2d10", 8, "piercing", "2d6", "fire")
+
+
+def test_trait_vira_special_ability_sem_ataque(conexao):
+    registrar_monstro(conexao, _adult_red_dragon())
+    acao = conexao.execute(
+        "SELECT id, categoria FROM acoes WHERE monstro_nome = ? AND nome_acao = ?",
+        ("Adult Red Dragon", "Legendary Resistance (3/Day)"),
+    ).fetchone()
+    ataques = conexao.execute(
+        "SELECT COUNT(*) FROM ataques WHERE acao_id = ?", (acao[0],)
+    ).fetchone()[0]
+    assert acao[1] == "special_ability" and ataques == 0
+
+
+def test_action_sem_ataque_nao_gera_linha_em_ataques(conexao):
+    registrar_monstro(conexao, _adult_red_dragon())
+    acao = conexao.execute(
+        "SELECT id FROM acoes WHERE monstro_nome = ? AND nome_acao = ?",
+        ("Adult Red Dragon", "Multiattack"),
+    ).fetchone()
+    ataques = conexao.execute(
+        "SELECT COUNT(*) FROM ataques WHERE acao_id = ?", (acao[0],)
+    ).fetchone()[0]
+    assert ataques == 0
+
+
+def test_melee_or_ranged_gera_duas_linhas_em_ataques(conexao):
+    registrar_monstro(conexao, _guarda_com_spear())
+    linhas = conexao.execute(
+        "SELECT a.tipo_ataque, a.alcance, a.alcance_longo "
+        "FROM ataques a JOIN acoes ac ON a.acao_id = ac.id "
+        "WHERE ac.monstro_nome = ? ORDER BY a.tipo_ataque",
+        ("Guarda de Teste",),
+    ).fetchall()
+    assert linhas == [("melee_weapon", 5, None), ("ranged_weapon", 20, 60)]
+
+
+def test_reingestao_nao_duplica_acoes_nem_ataques(conexao):
+    registrar_monstro(conexao, _adult_red_dragon())
+    registrar_monstro(conexao, _adult_red_dragon())
+    acoes = conexao.execute(
+        "SELECT COUNT(*) FROM acoes WHERE monstro_nome = ?", ("Adult Red Dragon",)
+    ).fetchone()[0]
+    ataques = conexao.execute(
+        "SELECT COUNT(*) FROM ataques a JOIN acoes ac ON a.acao_id = ac.id "
+        "WHERE ac.monstro_nome = ?",
+        ("Adult Red Dragon",),
+    ).fetchone()[0]
+    assert (acoes, ataques) == (3, 1)

@@ -1,13 +1,22 @@
 """Camada de dados: criação do schema relacional (SQLite) e ingestão do monstro.
 
-Schema normalizado de 9 tabelas: `monstros` (nível monstro) + 4 tabelas de lista
-(dano, condição, ambiente, perícia) + `acoes`/`ataques`/`efeitos` (criadas vazias;
-populadas nas Specs 4-5). A ingestão lê o dict estruturado da API v2 (SRD 2014) e
-grava só o nível monstro. Valores guardados em chaves canônicas em inglês da v2
-(`fire`, `dragon`) — tradução é camada de apresentação futura.
+Schema normalizado de 8 tabelas: `monstros` (nível monstro) + 4 tabelas de lista
+(dano, condição, ambiente, perícia) + `acoes`/`ataques` (Spec 4) e `efeitos`
+(criada vazia; Spec 5). A ingestão lê o dict estruturado da API v2 (SRD 2014) e grava
+nível monstro, tabelas de lista e ações/ataques. Valores guardados em chaves canônicas
+em inglês da v2 (`fire`, `dragon`) — tradução é camada de apresentação futura.
 """
 
 import sqlite3
+
+from bestiario.extracao import extrair_ataque
+
+# action_type da v2 → valor da coluna `categoria` (traits usam 'special_ability').
+CATEGORIA_POR_ACTION_TYPE = {
+    "ACTION": "action",
+    "LEGENDARY_ACTION": "legendary_action",
+    "REACTION": "reaction",
+}
 
 # (campo em resistances_and_immunities, valor da coluna `relacao`)
 RELACOES_DANO = [
@@ -153,13 +162,16 @@ def criar_base_de_dados(caminho="bestiario_combate.db"):
 
 
 def registrar_monstro(conexao, monstro):
-    """Ingere um dict de criatura da v2, gravando nível monstro + tabelas de lista."""
+    """Ingere um dict da v2: nível monstro + tabelas de lista + ações/ataques."""
     cursor = conexao.cursor()
-    # Apaga as linhas de lista ANTES do INSERT OR REPLACE do monstro: com as FKs
-    # ativas, o REPLACE deleta a linha-pai e falharia se filhos ainda a referenciassem.
-    _apagar_tabelas_de_lista(cursor, monstro.get("name"))
+    nome = monstro.get("name")
+    # Apaga os filhos ANTES do INSERT OR REPLACE do monstro: com as FKs ativas, o
+    # REPLACE deleta a linha-pai e falharia se filhos ainda a referenciassem.
+    _apagar_tabelas_de_lista(cursor, nome)
+    _apagar_acoes(cursor, nome)
     _gravar_monstro(cursor, monstro)
     _inserir_tabelas_de_lista(cursor, monstro)
+    _inserir_acoes_e_ataques(cursor, monstro)
     conexao.commit()
 
 
@@ -259,3 +271,62 @@ def _inserir_tabelas_de_lista(cursor, m):
             "VALUES (?, ?, ?)",
             (nome, pericia, bonus),
         )
+
+
+def _apagar_acoes(cursor, nome):
+    """Apaga ações e ataques do monstro — filhos (`ataques`) antes do pai (`acoes`)."""
+    cursor.execute(
+        "DELETE FROM ataques WHERE acao_id IN "
+        "(SELECT id FROM acoes WHERE monstro_nome = ?)",
+        (nome,),
+    )
+    cursor.execute("DELETE FROM acoes WHERE monstro_nome = ?", (nome,))
+
+
+def _inserir_acoes_e_ataques(cursor, m):
+    nome = m.get("name")
+    for acao in m.get("actions") or []:
+        categoria = CATEGORIA_POR_ACTION_TYPE.get(acao.get("action_type"))
+        acao_id = _inserir_acao(cursor, nome, categoria, acao)
+        for attack in acao.get("attacks") or []:
+            _inserir_ataque(cursor, acao_id, acao.get("desc", ""), attack)
+    # traits são habilidades passivas: viram `acoes` special_ability, sem ataque.
+    for trait in m.get("traits") or []:
+        _inserir_acao(cursor, nome, "special_ability", trait)
+
+
+def _inserir_acao(cursor, nome, categoria, acao):
+    cursor.execute(
+        "INSERT INTO acoes (monstro_nome, categoria, nome_acao, descricao) "
+        "VALUES (?, ?, ?, ?)",
+        (nome, categoria, acao.get("name"), acao.get("desc")),
+    )
+    return cursor.lastrowid
+
+
+def _inserir_ataque(cursor, acao_id, desc, attack):
+    d = extrair_ataque(desc, attack)
+    cursor.execute(
+        """
+        INSERT INTO ataques (
+            acao_id, nome_ataque, tipo_ataque, bonus_ataque, alcance, alcance_longo,
+            dano_dado, dano_bonus, dano_tipo,
+            dano_extra_dado, dano_extra_bonus, dano_extra_tipo
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            acao_id,
+            d["nome_ataque"],
+            d["tipo_ataque"],
+            d["bonus_ataque"],
+            d["alcance"],
+            d["alcance_longo"],
+            d["dano_dado"],
+            d["dano_bonus"],
+            d["dano_tipo"],
+            d["dano_extra_dado"],
+            d["dano_extra_bonus"],
+            d["dano_extra_tipo"],
+        ),
+    )
