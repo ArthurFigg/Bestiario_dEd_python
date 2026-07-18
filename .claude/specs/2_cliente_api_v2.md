@@ -53,3 +53,6 @@ Seção adicionada retroativamente (spec anterior à regra "spec declara e /spec
 - API Open5e — referência rápida → substituir o bloco v1 (`/v1/monsters/`, `/{slug}/`) pelos endpoints v2 (`/v2/creatures/`, filtro `document__key=srd-2014`, paginação por `next`).
 - O que é esse projeto → o escopo deixa de ser "todos os monstros do D&D 5e" e passa a "SRD 2014 (~325 criaturas)"; endpoint base atualizado para a v2.
 - Contexto para decisões futuras → "endpoint atual: `https://api.open5e.com/v1/monsters/`" → v2 `/v2/creatures/` (SRD 2014).
+
+---
+**Status:** concluida em 2026-07-18

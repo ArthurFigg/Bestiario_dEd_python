@@ -3,11 +3,12 @@
 ## O que é esse projeto
 
 Bestiário de D&D 5e é uma ferramenta em Python que consome a API pública
-**Open5e** (`https://api.open5e.com/monsters/`) para buscar, armazenar e
-analisar todos os monstros do D&D 5ª edição. O objetivo é criar um banco
-de dados local rico o suficiente para permitir pesquisas e análises
-sofisticadas — hoje via terminal/SQL, futuramente via front-end web
-acessível a qualquer pessoa sem conhecimento técnico.
+**Open5e v2** (`https://api.open5e.com/v2/creatures/`, escopo SRD 2014 —
+~325 criaturas) para buscar, armazenar e analisar os monstros do D&D 5ª
+edição. O objetivo é criar um banco de dados local rico o suficiente para
+permitir pesquisas e análises sofisticadas — hoje via terminal/SQL,
+futuramente via front-end web acessível a qualquer pessoa sem conhecimento
+técnico.
 
 ## Estrutura de arquivos
 
@@ -34,7 +35,7 @@ Bestiario_dEd_python/
 - **requests** — chamadas HTTP para a API Open5e
 - **pandas** — manipulação de dados para relatórios
 - **tabulate** — formatação de tabelas no terminal
-- **API externa**: `https://api.open5e.com/v1/monsters/` (paginada, sem auth)
+- **API externa**: `https://api.open5e.com/v2/creatures/` (paginada, sem auth), fixada no documento SRD 2014 via `document__key=srd-2014`
 
 ## Schema do banco de dados
 
@@ -212,7 +213,7 @@ para este momento.
 
 - O projeto tem como público-alvo final **usuários sem conhecimento técnico**,
   então o front-end precisa ser simples e intuitivo
-- A API Open5e é **gratuita e sem autenticação** — basta HTTP GET, endpoint atual: `https://api.open5e.com/v1/monsters/`
+- A API Open5e é **gratuita e sem autenticação** — basta HTTP GET, endpoint atual: `https://api.open5e.com/v2/creatures/` (escopo SRD 2014, `document__key=srd-2014`)
 - O banco `bestiario_combate.db` já está sincronizado com o schema atual (2319 monstros, 14970 ações)
 - O código será lido por recrutadores — comentários claros e estrutura
   organizada são tão importantes quanto funcionalidade
@@ -282,9 +283,12 @@ jobs:
 ## API Open5e — referência rápida
 
 ```
-GET https://api.open5e.com/v1/monsters/          # lista paginada (50 por vez)
-GET https://api.open5e.com/v1/monsters/{slug}/  # monstro específico
-Paginação: campo "next" no JSON com a URL da próxima página
+GET https://api.open5e.com/v2/creatures/?document__key=srd-2014        # lista SRD 2014 (325)
+GET https://api.open5e.com/v2/creatures/?document__key=srd-2014&name__iexact=Goblin  # por nome
+GET https://api.open5e.com/v2/creatures/?document__key=srd-2014&type=humanoid         # filtro
+GET https://api.open5e.com/v2/creatures/?document__key=srd-2014&challenge_rating=17   # filtro CR
+GET https://api.open5e.com/v2/creatures/{key}/   # criatura específica (ex: srd_goblin)
+Paginação: campo "next" no JSON com a URL da próxima página (já carrega os params)
 Sem autenticação necessária
 ```
 
