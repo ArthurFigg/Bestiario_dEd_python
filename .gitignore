@@ -3,3 +3,6 @@ __pycache__/
 .venv/
 .pytest_cache/
 .ruff_cache/
+
+# Banco de dados — artefato regenerável via sincronização (opção 4 do menu)
+bestiario_combate.db

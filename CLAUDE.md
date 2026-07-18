@@ -39,34 +39,42 @@ Bestiario_dEd_python/
 
 ## Schema do banco de dados
 
-### Tabela `monstros`
-| Coluna | Tipo | Descrição |
-|---|---|---|
-| nome | TEXT PK | Nome do monstro (chave primária) |
-| tamanho | TEXT | Tiny, Small, Medium, Large, Huge, Gargantuan |
-| tipo | TEXT | beast, undead, dragon, humanoid, etc. |
-| classe_armadura | INTEGER | AC |
-| pontos_vida | INTEGER | HP máximo |
-| nivel_desafio | REAL | CR como número decimal (ex: 0.25, 5.0, 30.0) — usa campo `cr` da API |
-| forca | INTEGER | STR |
-| destreza | INTEGER | DEX |
-| constituicao | INTEGER | CON |
-| inteligencia | INTEGER | INT |
-| sabedoria | INTEGER | WIS |
-| carisma | INTEGER | CHA |
+Schema relacional normalizado de **8 tabelas** (v2, SRD 2014). Valores guardados em
+chaves canônicas em inglês da API (`fire`, `dragon`, `prone`) — tradução é camada de
+apresentação futura. `FOREIGN KEY` aplicadas via `PRAGMA foreign_keys = ON` (por
+conexão, setado em `criar_base_de_dados`).
 
-### Tabela `acoes`
-| Coluna | Tipo | Descrição |
-|---|---|---|
-| id | INTEGER PK | Auto-incremento |
-| monstro_nome | TEXT FK | Referência para monstros.nome |
-| nome_acao | TEXT | Nome da ação/habilidade |
-| descricao | TEXT | Texto completo da ação |
-| bonus_ataque | INTEGER | Extraído da descrição via regex se ausente |
-| dados_dano | TEXT | Ex: "2d6 + 4", extraído via regex |
+### `monstros` (nível monstro)
+`nome` (TEXT PK), `tamanho`, `tipo` (chaves da v2: `huge`, `dragon`),
+`classe_armadura`, `pontos_vida` (INTEGER), `nivel_desafio` (REAL, de
+`challenge_rating`), atributos `forca`…`carisma` (INTEGER, de `ability_scores`).
+Enriquecida com:
+- **Sentidos**: `alcance_visao_cega`, `alcance_visao_penumbra`,
+  `alcance_sentido_tremor`, `alcance_visao_verdadeira`, `percepcao_passiva` — NULL
+  quando o sentido não existe.
+- **Saves**: `forca_save`…`carisma_save` — de `saving_throws_all`, valores derivados
+  (nunca NULL por falta de proficiência).
+- **Velocidade**: `velocidade_caminhada`, `velocidade_voo`, `velocidade_natacao`,
+  `velocidade_escalada`, `velocidade_escavacao`, `pode_pairar` (0/1) — de `speed_all`.
+- **Lore**: `alinhamento` (TEXT), `idiomas` (TEXT, de `languages.as_string`).
 
-Ações abrangem: `actions`, `special_abilities`, `legendary_actions`, `reactions` —
-todas unificadas na mesma tabela com INSERT sem distinção de categoria.
+### Tabelas de lista (uma linha por valor — análise exata via COUNT/JOIN)
+- `monstro_interacao_dano` (id PK, monstro_nome FK, `tipo_dano`, `relacao` =
+  `imunidade`|`resistencia`|`vulnerabilidade`)
+- `monstro_imunidade_condicao` (id PK, monstro_nome FK, `condicao`)
+- `monstro_ambiente` (id PK, monstro_nome FK, `ambiente`)
+- `monstro_pericia` (id PK, monstro_nome FK, `pericia`, `bonus`)
+
+### Tabelas de combate (criadas vazias; populadas nas Specs 4-5)
+- `acoes` (id PK, monstro_nome FK, `categoria`, `nome_acao`, `descricao`)
+- `ataques` (id PK, acao_id FK, `nome_ataque`, `tipo_ataque`, `bonus_ataque`,
+  `alcance`, `alcance_longo`, `dano_dado`, `dano_bonus`, `dano_tipo`,
+  `dano_extra_dado`, `dano_extra_bonus`, `dano_extra_tipo`)
+- `efeitos` (id PK, acao_id FK, `cd_resistencia`, `atributo_resistencia`,
+  `condicao`, `area_tipo`, `area_tamanho`)
+
+Idempotência: `INSERT OR REPLACE` em `monstros`; `DELETE` das linhas de lista do
+monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
 
 ## O que já funciona
 
@@ -80,24 +88,22 @@ todas unificadas na mesma tabela com INSERT sem distinção de categoria.
 - [x] Git configurado e com histórico
 - [x] Guard `if __name__ == "__main__"` em `bestiario.py` — menu não roda ao importar
 - [x] Tratamento de erros HTTP com `try/except` nas três funções de chamada à API
-- [x] `nivel_desafio` salvo como REAL usando o campo `cr` da API (ordenação numérica correta)
-- [x] URLs atualizadas para `v1` após mudança de versionamento da Open5e
-- [x] `DELETE FROM acoes` antes de reinserir — evita duplicar ações ao ressincronizar o mesmo monstro
-- [x] `bestiario_combate.db` já ressincronizado com o schema/URLs corretos —
-  verificado em 2026-07-08 via query direta: 2319 monstros, 14970 ações,
-  `nivel_desafio` REAL com valores no range 0.0–30.0, 1244 ações já no formato
-  combinado de `dados_dano`. Só 4 ações duplicadas, todas do mesmo monstro
-  (`Bone Lord`) — parece ser a própria API do Open5e retornando a ação
-  duplicada dentro da mesma resposta, não um bug do dedupe local.
+- [x] `nivel_desafio` salvo como REAL (campo `challenge_rating` da v2 — ordenação numérica correta)
+- [x] URLs migradas para a API v2 (`/v2/creatures/`, SRD 2014) — ver Spec 2
+- [x] Idempotência no re-sync: `INSERT OR REPLACE` em `monstros` + `DELETE` das linhas
+  de lista antes do REPLACE (as FKs ativas exigem apagar filhos antes do pai)
+- [x] `bestiario_combate.db` regenerado para o schema v2 (SRD 2014): **325 monstros**,
+  tabelas de lista populadas (473 interações de dano, 339 imunidades a condição,
+  1638 ambientes, 527 perícias); `acoes`/`ataques`/`efeitos` vazias até as Specs 4-5.
+  Artefato regenerável — fora do git, recriar via opção 4 do menu.
 - [x] `.gitignore` criado — `__pycache__/` e `*.pyc` fora do controle de versão
 
 ## O que está incompleto ou pode melhorar
 
-- [ ] **Dados faltando no banco**: a API retorna muitos campos que não são
-  salvos. Campos identificados como úteis para pesquisa: `damage_immunities`,
-  `damage_resistances`, `damage_vulnerabilities`, `condition_immunities`,
-  `environments`, `alignment`, `senses`, `speed`, `perception`,
-  `strength_save`…`charisma_save`, `skills`.
+- [x] ~~**Dados faltando no banco**~~ — **resolvido na Spec 3**: imunidades/
+  resistências/vulnerabilidades a dano, imunidades a condição, ambientes,
+  alinhamento, sentidos, velocidade, saves e perícias agora são persistidos
+  (tabela `monstros` enriquecida + 4 tabelas de lista normalizadas).
 - [ ] **Categoria das ações não é salva**: todas as ações vão para a mesma
   tabela sem coluna indicando se é `action`, `legendary_action`, etc.
   Além disso, `bonus_actions` não é capturado nem como categoria.
@@ -214,7 +220,9 @@ para este momento.
 - O projeto tem como público-alvo final **usuários sem conhecimento técnico**,
   então o front-end precisa ser simples e intuitivo
 - A API Open5e é **gratuita e sem autenticação** — basta HTTP GET, endpoint atual: `https://api.open5e.com/v2/creatures/` (escopo SRD 2014, `document__key=srd-2014`)
-- O banco `bestiario_combate.db` já está sincronizado com o schema atual (2319 monstros, 14970 ações)
+- O banco `bestiario_combate.db` está no schema v2 (SRD 2014): 325 monstros, com
+  `acoes`/`ataques`/`efeitos` vazias até as Specs 4-5. É artefato regenerável (fora do
+  git; recriar via opção 4 do menu)
 - O código será lido por recrutadores — comentários claros e estrutura
   organizada são tão importantes quanto funcionalidade
 - Preferência por **soluções simples e legíveis** em vez de over-engineering

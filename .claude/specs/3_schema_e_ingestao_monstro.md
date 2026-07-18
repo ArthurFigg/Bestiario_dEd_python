@@ -105,3 +105,6 @@ Seção adicionada retroativamente (spec anterior à regra "spec declara e /spec
 - O que já funciona → remover/atualizar os itens que descrevem o estado v1 do banco: "2319 monstros, 14970 ações", "1244 ações no formato combinado de `dados_dano`", a dup do Bone Lord, `INSERT OR REPLACE`/`DELETE FROM acoes` sobre o schema antigo. Após o re-sync: ~325 monstros do SRD 2014; `acoes`/`ataques`/`efeitos` vazias até as Specs 4-5.
 - O que está incompleto ou pode melhorar → item "Dados faltando no banco" (imunidades, resistências, vulnerabilidades, imunidades a condição, ambientes, alinhamento, sentidos, velocidade, saves, perícias) resolvido — agora persistidos.
 - Contexto para decisões futuras → "banco já sincronizado (2319 monstros, 14970 ações)" → ~325 do SRD 2014, com `acoes`/`ataques`/`efeitos` vazias até as Specs 4-5.
+
+---
+**Status:** concluida em 2026-07-18
