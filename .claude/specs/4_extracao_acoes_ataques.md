@@ -75,3 +75,9 @@ Percorre `actions` e `traits` do dict estruturado da v2 (SRD 2014) e popula as t
 - `tipo_ataque` → derivado do prefixo do `desc` (`melee_weapon`/`ranged_weapon`/`melee_spell`/`ranged_spell`), não do `attack_type` cru (que só distingue WEAPON/SPELL). Motivo: captura as duas dimensões (corpo-a-corpo/distância + arma/magia) numa string pesquisável, coerente com "desc é o gabarito".
 - Slot único de dano extra → suficiente. Motivo: verificado 0 ataques no SRD com 2+ danos secundários; o schema da Spec 3 (`dano_extra_*` único) cobre 100% dos casos.
 - Idempotência → `DELETE` de `acoes`/`ataques` do monstro antes de reinserir, mesmo padrão da Spec 3 e da v1.
+
+## Impacto no CLAUDE.md
+Seção adicionada retroativamente (spec anterior à regra "spec declara e /spec-close sincroniza o CLAUDE.md").
+- O que está incompleto ou pode melhorar → item "Categoria das ações não é salva" resolvido: coluna `categoria` populada (`action`/`legendary_action`/`reaction`/`special_ability`; `BONUS_ACTION` não existe no SRD 2014).
+- O que já funciona → adicionar população de `acoes` (com `categoria`) e `ataques` via extração híbrida (array `attacks[]` estruturado como enumerador + regex do `desc` como gabarito do dano; fallback para o estruturado quando a regex falha).
+- Schema do banco de dados → garantir que a observação antiga "Ações abrangem `actions`/`special_abilities`/`legendary_actions`/`reactions` — todas unificadas na mesma tabela sem distinção de categoria" não sobreviva (agora há `categoria` e os ataques ficam em tabela própria). Se a Spec 3 já reescreveu a seção, aqui é só conferir.

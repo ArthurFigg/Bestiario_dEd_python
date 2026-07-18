@@ -13,16 +13,23 @@ acessível a qualquer pessoa sem conhecimento técnico.
 
 ```
 Bestiario_dEd_python/
-├── bestiario.py          # Ponto de entrada — menu interativo no terminal
-├── banco_de_dados.py     # Camada de dados: criação do SQLite e inserção
-├── analise_bestiario.py  # Relatórios prontos usando pandas + tabulate
+├── main.py               # Ponto de entrada — menu interativo no terminal
+├── bestiario/            # Pacote organizado por responsabilidade
+│   ├── __init__.py       # Re-exportações da API pública do pacote
+│   ├── cliente_api.py    # Comunicação HTTP com a API Open5e
+│   ├── banco.py          # Camada de dados: criação do SQLite e inserção
+│   ├── extracao.py       # Extração de bônus/dano das ações (regex)
+│   ├── relatorios.py     # Relatórios prontos usando pandas + tabulate
+│   └── modelos.py        # Entidades do domínio (placeholder até a Spec 3)
+├── tests/                # Testes pytest espelhando o pacote
+├── pyproject.toml        # Projeto e dependências gerenciados por uv
 ├── bestiario_combate.db  # Banco SQLite com os dados já sincronizados
 └── CLAUDE.md             # Este arquivo
 ```
 
 ## Tecnologias usadas
 
-- **Python 3** (testado com 3.14 — veja __pycache__)
+- **Python 3.13** gerenciado por `uv` (interpretador baixado pelo próprio uv)
 - **SQLite** via módulo `sqlite3` da stdlib
 - **requests** — chamadas HTTP para a API Open5e
 - **pandas** — manipulação de dados para relatórios
@@ -215,13 +222,13 @@ para este momento.
 
 ```bash
 # Instalar dependências
-pip install requests pandas tabulate
+uv sync
 
 # Menu principal
-python bestiario.py
+python main.py
 
 # Só os relatórios
-python analise_bestiario.py
+python bestiario/relatorios.py
 ```
 
 ## Setup do ambiente

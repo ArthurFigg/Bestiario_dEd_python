@@ -71,3 +71,10 @@ Faz os filtros de tipo/CR do menu consultarem o SQLite antes de chamar a API (co
 - Invocação dos relatórios → standalone (rodar o módulo) **e** opção "Ver relatórios" no menu. Motivo: preserva o modo de execução atual e melhora usabilidade a custo baixo.
 - Funções de consulta local em `banco.py` → seguem a camada de dados (repositório) do CLAUDE.md; `main.py` (UI) só orquestra, não faz SQL. Motivo: separação de responsabilidades (regra "nunca misturar lógica de negócio/UI com acesso a dados").
 - Banco vazio nos relatórios → exibe tabela vazia, não erro. Motivo: ausência de dado (sem sync) é estado válido, não falha.
+
+## Impacto no CLAUDE.md
+Seção adicionada retroativamente (spec anterior à regra "spec declara e /spec-close sincroniza o CLAUDE.md").
+- O que está incompleto ou pode melhorar → itens "Sem pesquisa no banco local" e "Expandir relatórios (por ambiente, comparação entre tipos, imunidade/resistência, condições)" resolvidos.
+- O que já funciona → adicionar consulta local-primeiro nos filtros de tipo/CR (opções 2 e 3) com fallback para a API v2 e rótulo de origem `[local]`/`[API]`; relatórios baseline reescritos para o schema novo (`ataques.bonus_ataque` no lugar de `acoes.bonus_ataque`); 4 relatórios ricos (por ambiente, comparação entre tipos, imunidade/resistência a dano, condições impostas).
+- Como rodar → o menu ganha a opção "Ver relatórios"; os relatórios seguem executáveis standalone via `python bestiario/relatorios.py`.
+- Contexto para decisões futuras → o pressuposto "todas as buscas de tipo/CR vão para a API mesmo depois de sincronizar" deixa de valer (agora é local primeiro, API como fallback).

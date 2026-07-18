@@ -48,3 +48,12 @@ Introduz `uv` + `pyproject.toml` com dependências travadas por teto de versão 
 - Profundidade desta spec → mover o código atual para os módulos certos, preservando comportamento; `modelos.py` nasce placeholder e `extracao.py` só com a regex atual. Enriquecimento fica para specs posteriores.
 - Fonte de dados nesta spec → permanece API v1 e schema de 2 tabelas; migração v2 e schema novo são specs seguintes (evita acoplar reestrutura com mudança de comportamento).
 - Deps → `uv` + `pyproject.toml` com teto de versão em todas as deps de produção (regra do CLAUDE.md global). `pytest` como dependência de desenvolvimento.
+
+## Impacto no CLAUDE.md
+Seção adicionada retroativamente (a spec é anterior à regra "spec declara e /spec-close sincroniza o CLAUDE.md").
+- Estrutura de arquivos → substituir o bloco flat (`bestiario.py`, `banco_de_dados.py`, `analise_bestiario.py`) pelo pacote `bestiario/` (`__init__.py`, `cliente_api.py`, `banco.py`, `extracao.py`, `relatorios.py`, `modelos.py`) + `main.py` na raiz como ponto de entrada; `tests/` espelhando o pacote.
+- Como rodar → trocar `pip install requests pandas tabulate` por `uv sync`; `python bestiario.py` por `python main.py`; `python analise_bestiario.py` por `python bestiario/relatorios.py`.
+- Tecnologias usadas → "Python 3 (testado com 3.14 — veja __pycache__)" passa a Python 3.13 gerenciado por `uv` (alinhado à seção "Setup do ambiente").
+
+---
+**Status:** concluida em 2026-07-18

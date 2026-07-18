@@ -46,3 +46,10 @@ Reescreve `bestiario/cliente_api.py` para consumir a API Open5e v2 (`https://api
 - Filtro de CR → parâmetro `challenge_rating` da v2 (confirmado: `?challenge_rating=17` retorna 36; `?cr=` é ignorado pela API).
 - Casos negativos → herdados da v1: nome não encontrado/status ≠ 200 → `None`; erro de conexão → `None`/lista vazia + mensagem via `try/except`; filtro sem resultado → lista vazia.
 - Escopo desta spec → só a camada de comunicação HTTP e o parsing da resposta; persistência (Spec 3) e extração de ações/ataques/efeitos (Specs 4-5) ficam de fora.
+
+## Impacto no CLAUDE.md
+Seção adicionada retroativamente (spec anterior à regra "spec declara e /spec-close sincroniza o CLAUDE.md"). Esta spec muda só a camada de código HTTP — a contagem de monstros no banco (2319) só muda na Spec 3 (re-sync); não editar contagem aqui.
+- Tecnologias usadas → "API externa: `https://api.open5e.com/v1/monsters/`" passa para v2 `https://api.open5e.com/v2/creatures/` (SRD 2014, `document__key=srd-2014`).
+- API Open5e — referência rápida → substituir o bloco v1 (`/v1/monsters/`, `/{slug}/`) pelos endpoints v2 (`/v2/creatures/`, filtro `document__key=srd-2014`, paginação por `next`).
+- O que é esse projeto → o escopo deixa de ser "todos os monstros do D&D 5e" e passa a "SRD 2014 (~325 criaturas)"; endpoint base atualizado para a v2.
+- Contexto para decisões futuras → "endpoint atual: `https://api.open5e.com/v1/monsters/`" → v2 `/v2/creatures/` (SRD 2014).

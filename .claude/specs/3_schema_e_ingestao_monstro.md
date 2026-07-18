@@ -98,3 +98,10 @@ efeitos (id PK, acao_id INTEGER FK, cd_resistencia INTEGER, atributo_resistencia
 - Migração do banco → o `.db` é artefato regenerável; a migração é apagar o `bestiario_combate.db` uma vez e re-sincronizar. `CREATE TABLE IF NOT EXISTS` mantido (não destrói dados no startup).
 - Escopo → só schema + persistência de nível monstro. `acoes`/`ataques`/`efeitos` criadas vazias; população nas Specs 4-5. Ações deixam de ser gravadas temporariamente até a Spec 4 (regressão consciente de meio de migração).
 - Valores em inglês no banco → chaves canônicas da v2 (`fire`, `prone`) preservadas; tradução é camada de apresentação futura.
+
+## Impacto no CLAUDE.md
+Seção adicionada retroativamente (spec anterior à regra "spec declara e /spec-close sincroniza o CLAUDE.md").
+- Schema do banco de dados → substituir a seção de 2 tabelas pelo schema relacional de ~9 tabelas: `monstros` enriquecida (sentidos, saves, velocidade, alinhamento, idiomas); tabelas de lista `monstro_interacao_dano`, `monstro_imunidade_condicao`, `monstro_ambiente`, `monstro_pericia`; `acoes` reescrita (ganha `categoria`, perde `bonus_ataque`/`dados_dano`); `ataques` e `efeitos` novas (criadas vazias, populadas nas Specs 4-5). Usar o bloco "Schema completo" desta spec como fonte.
+- O que já funciona → remover/atualizar os itens que descrevem o estado v1 do banco: "2319 monstros, 14970 ações", "1244 ações no formato combinado de `dados_dano`", a dup do Bone Lord, `INSERT OR REPLACE`/`DELETE FROM acoes` sobre o schema antigo. Após o re-sync: ~325 monstros do SRD 2014; `acoes`/`ataques`/`efeitos` vazias até as Specs 4-5.
+- O que está incompleto ou pode melhorar → item "Dados faltando no banco" (imunidades, resistências, vulnerabilidades, imunidades a condição, ambientes, alinhamento, sentidos, velocidade, saves, perícias) resolvido — agora persistidos.
+- Contexto para decisões futuras → "banco já sincronizado (2319 monstros, 14970 ações)" → ~325 do SRD 2014, com `acoes`/`ataques`/`efeitos` vazias até as Specs 4-5.

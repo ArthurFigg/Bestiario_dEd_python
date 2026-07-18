@@ -74,3 +74,8 @@ Parseia o campo `desc` de cada linha de `acoes` (via regex) e popula a tabela `e
 - Save principal por ação → primeiro DC do `desc`; múltiplos saves distintos herdam o principal. Limitação lossy consciente: condições vindas de cláusulas com DCs diferentes (ex: Chuul/Tentacles) herdam o save principal da ação, podendo associar o DC errado a uma condição secundária. Aceito como custo da parte lossy — bindar cada condição à sua cláusula seria regex frágil e over-engineered.
 - Risco de falso-positivo → uma condição citada como pré-condição ("if the target is grappled") ou negação pode gerar linha indevida. Aceito como limitação lossy documentada; não se tenta análise semântica do texto.
 - Idempotência → `DELETE` de `efeitos` do monstro (via join em `acoes`) antes de reinserir, antes do delete de `acoes` para não deixar órfãos. Mesmo padrão das Specs 3-4.
+
+## Impacto no CLAUDE.md
+Seção adicionada retroativamente (spec anterior à regra "spec declara e /spec-close sincroniza o CLAUDE.md").
+- O que já funciona → adicionar extração de efeitos populando a tabela `efeitos`: save (CD + atributo, incluindo escape DC), condição imposta (15 condições canônicas, 1 linha por condição) e área (geométrica ou emanação `within X ft`), tudo por regex sobre o `desc` (parte assumidamente lossy — a v2 não estrutura nada disso).
+- (A tabela `efeitos` já é documentada no schema pela Spec 3; nenhuma outra seção do CLAUDE.md afirma algo que esta spec torne falso.)
