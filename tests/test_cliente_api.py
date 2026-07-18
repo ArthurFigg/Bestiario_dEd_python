@@ -38,6 +38,7 @@ def _instalar_get(monkeypatch, respostas):
 
 # --- buscar_monstro ---
 
+
 def test_buscar_monstro_devolve_dict_do_srd_no_status_200(monkeypatch):
     _instalar_get(monkeypatch, [_Resposta(200, {"results": [{"key": "srd_goblin"}]})])
     assert buscar_monstro("goblin")["key"] == "srd_goblin"
@@ -69,11 +70,17 @@ def test_buscar_monstro_restringe_ao_documento_srd_2014(monkeypatch):
 
 # --- filtrar_monstros ---
 
+
 def test_filtrar_monstros_percorre_multiplas_paginas(monkeypatch):
-    _instalar_get(monkeypatch, [
-        _Resposta(200, {"results": [{"key": "a"}, {"key": "b"}], "next": "pagina2"}),
-        _Resposta(200, {"results": [{"key": "c"}], "next": None}),
-    ])
+    _instalar_get(
+        monkeypatch,
+        [
+            _Resposta(
+                200, {"results": [{"key": "a"}, {"key": "b"}], "next": "pagina2"}
+            ),
+            _Resposta(200, {"results": [{"key": "c"}], "next": None}),
+        ],
+    )
     chaves = [m["key"] for m in filtrar_monstros("type", "humanoid")]
     assert chaves == ["a", "b", "c"]
 
@@ -94,14 +101,21 @@ def test_filtrar_monstros_erro_de_conexao_devolve_lista_vazia(monkeypatch):
 
 # --- sincronizar_base_completa ---
 
+
 def test_sincronizar_registra_criaturas_de_todas_as_paginas(monkeypatch):
-    _instalar_get(monkeypatch, [
-        _Resposta(200, {"results": [{"key": "a"}, {"key": "b"}], "next": "pagina2"}),
-        _Resposta(200, {"results": [{"key": "c"}], "next": None}),
-    ])
+    _instalar_get(
+        monkeypatch,
+        [
+            _Resposta(
+                200, {"results": [{"key": "a"}, {"key": "b"}], "next": "pagina2"}
+            ),
+            _Resposta(200, {"results": [{"key": "c"}], "next": None}),
+        ],
+    )
     registradas = []
     monkeypatch.setattr(
-        cliente_api, "registrar_monstro",
+        cliente_api,
+        "registrar_monstro",
         lambda conexao, criatura: registradas.append(criatura["key"]),
     )
     sincronizar_base_completa(conexao=object())
@@ -122,7 +136,8 @@ def test_sincronizar_erro_de_conexao_nao_propaga_excecao(monkeypatch):
     monkeypatch.setattr(cliente_api.requests, "get", _lanca)
     registradas = []
     monkeypatch.setattr(
-        cliente_api, "registrar_monstro",
+        cliente_api,
+        "registrar_monstro",
         lambda conexao, criatura: registradas.append(criatura),
     )
     sincronizar_base_completa(conexao=object())

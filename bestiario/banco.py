@@ -15,7 +15,7 @@ def criar_base_de_dados(caminho="bestiario_combate.db"):
     conexao = sqlite3.connect(caminho)
     cursor = conexao.cursor()
 
-    cursor.execute('''
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS monstros (
             nome TEXT PRIMARY KEY,
             tamanho TEXT,
@@ -30,9 +30,9 @@ def criar_base_de_dados(caminho="bestiario_combate.db"):
             sabedoria INTEGER,
             carisma INTEGER
         )
-    ''')
+    """)
 
-    cursor.execute('''
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS acoes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             monstro_nome TEXT,
@@ -42,7 +42,7 @@ def criar_base_de_dados(caminho="bestiario_combate.db"):
             dados_dano TEXT,
             FOREIGN KEY (monstro_nome) REFERENCES monstros (nome)
         )
-    ''')
+    """)
 
     conexao.commit()
     return conexao
@@ -51,28 +51,31 @@ def criar_base_de_dados(caminho="bestiario_combate.db"):
 def registrar_monstro(conexao, monstro):
     cursor = conexao.cursor()
 
-    cursor.execute('''
+    cursor.execute(
+        """
         INSERT OR REPLACE INTO monstros
         (nome, tamanho, tipo, classe_armadura, pontos_vida, nivel_desafio,
          forca, destreza, constituicao, inteligencia, sabedoria, carisma)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        monstro.get('name'),
-        monstro.get('size'),
-        monstro.get('type'),
-        monstro.get('armor_class'),
-        monstro.get('hit_points'),
-        monstro.get('cr'),
-        monstro.get('strength'),
-        monstro.get('dexterity'),
-        monstro.get('constitution'),
-        monstro.get('intelligence'),
-        monstro.get('wisdom'),
-        monstro.get('charisma')
-    ))
+    """,
+        (
+            monstro.get("name"),
+            monstro.get("size"),
+            monstro.get("type"),
+            monstro.get("armor_class"),
+            monstro.get("hit_points"),
+            monstro.get("cr"),
+            monstro.get("strength"),
+            monstro.get("dexterity"),
+            monstro.get("constitution"),
+            monstro.get("intelligence"),
+            monstro.get("wisdom"),
+            monstro.get("charisma"),
+        ),
+    )
 
     # Reinsere as ações do zero para não duplicar ao ressincronizar o mesmo monstro.
-    cursor.execute("DELETE FROM acoes WHERE monstro_nome = ?", (monstro.get('name'),))
+    cursor.execute("DELETE FROM acoes WHERE monstro_nome = ?", (monstro.get("name"),))
 
     todas_acoes = []
     for categoria in CATEGORIAS_ACAO:
@@ -81,13 +84,19 @@ def registrar_monstro(conexao, monstro):
             todas_acoes.extend(lista_categoria)
 
     for acao in todas_acoes:
-        desc = acao.get('desc', '')
-        bonus = extrair_bonus_ataque(acao.get('attack_bonus'), desc)
-        dano = extrair_dados_dano(acao.get('damage_dice'), acao.get('damage_bonus'), desc)
+        desc = acao.get("desc", "")
+        bonus = extrair_bonus_ataque(acao.get("attack_bonus"), desc)
+        dano = extrair_dados_dano(
+            acao.get("damage_dice"), acao.get("damage_bonus"), desc
+        )
 
-        cursor.execute('''
-            INSERT INTO acoes (monstro_nome, nome_acao, descricao, bonus_ataque, dados_dano)
+        cursor.execute(
+            """
+            INSERT INTO acoes
+                (monstro_nome, nome_acao, descricao, bonus_ataque, dados_dano)
             VALUES (?, ?, ?, ?, ?)
-        ''', (monstro.get('name'), acao.get('name'), desc, bonus, dano))
+        """,
+            (monstro.get("name"), acao.get("name"), desc, bonus, dano),
+        )
 
     conexao.commit()

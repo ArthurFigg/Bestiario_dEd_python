@@ -34,16 +34,18 @@ def executar_menu():
 
         elif opcao == "2":
             tipo = input("Digite o tipo do monstro: ").strip().lower()
-            monstros = filtrar_monstros('type', tipo)
+            monstros = filtrar_monstros("type", tipo)
             if monstros:
                 for monstro in monstros:
-                    print(f"- {monstro['name']} (Desafio: {monstro['challenge_rating']})")
+                    print(
+                        f"- {monstro['name']} (Desafio: {monstro['challenge_rating']})"
+                    )
             else:
                 print("Nenhum monstro encontrado.")
 
         elif opcao == "3":
             desafio = input("Digite o desafio: ").strip()
-            monstros = filtrar_monstros('challenge_rating', desafio)
+            monstros = filtrar_monstros("challenge_rating", desafio)
             if monstros:
                 for monstro in monstros:
                     print(f"- {monstro['name']} (Tipo: {monstro['type']})")

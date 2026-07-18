@@ -32,7 +32,9 @@ def test_registrar_monstro_grava_linha_na_tabela(tmp_path):
     registrar_monstro(conexao, _monstro_fake())
 
     cursor = conexao.cursor()
-    cursor.execute("SELECT nome, nivel_desafio FROM monstros WHERE nome = ?", ("Goblin de Teste",))
+    cursor.execute(
+        "SELECT nome, nivel_desafio FROM monstros WHERE nome = ?", ("Goblin de Teste",)
+    )
     linha = cursor.fetchone()
     conexao.close()
 
@@ -44,7 +46,9 @@ def test_registrar_monstro_persiste_acao_com_dano_combinado(tmp_path):
     registrar_monstro(conexao, _monstro_fake())
 
     cursor = conexao.cursor()
-    cursor.execute("SELECT dados_dano FROM acoes WHERE monstro_nome = ?", ("Goblin de Teste",))
+    cursor.execute(
+        "SELECT dados_dano FROM acoes WHERE monstro_nome = ?", ("Goblin de Teste",)
+    )
     dano = cursor.fetchone()[0]
     conexao.close()
 
@@ -57,7 +61,9 @@ def test_ressincronizar_mesmo_monstro_nao_duplica_acoes(tmp_path):
     registrar_monstro(conexao, _monstro_fake())
 
     cursor = conexao.cursor()
-    cursor.execute("SELECT COUNT(*) FROM acoes WHERE monstro_nome = ?", ("Goblin de Teste",))
+    cursor.execute(
+        "SELECT COUNT(*) FROM acoes WHERE monstro_nome = ?", ("Goblin de Teste",)
+    )
     total = cursor.fetchone()[0]
     conexao.close()
 

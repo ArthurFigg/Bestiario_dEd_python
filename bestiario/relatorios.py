@@ -22,7 +22,7 @@ def gerar_relatorio_perfeito(caminho="bestiario_combate.db"):
     """
     df_fortes = pd.read_sql_query(query_fortes, conn)
     print("\n OS 5 MAIS RESISTENTES (DADOS COMPLETOS):")
-    print(tabulate(df_fortes, headers='keys', tablefmt='psql', showindex=False))
+    print(tabulate(df_fortes, headers="keys", tablefmt="psql", showindex=False))
 
     query_ataques = """
     SELECT
@@ -38,7 +38,7 @@ def gerar_relatorio_perfeito(caminho="bestiario_combate.db"):
     """
     df_ataques = pd.read_sql_query(query_ataques, conn)
     print("\n TOP 5 ATAQUES MAIS PRECISOS (DADOS COMPLETOS):")
-    print(tabulate(df_ataques, headers='keys', tablefmt='psql', showindex=False))
+    print(tabulate(df_ataques, headers="keys", tablefmt="psql", showindex=False))
 
     query_stats = """
     SELECT
@@ -54,7 +54,7 @@ def gerar_relatorio_perfeito(caminho="bestiario_combate.db"):
     """
     df_stats = pd.read_sql_query(query_stats, conn)
     print("\n LETALIDADE MÉDIA POR CATEGORIA:")
-    print(tabulate(df_stats, headers='keys', tablefmt='psql', showindex=False))
+    print(tabulate(df_stats, headers="keys", tablefmt="psql", showindex=False))
 
     conn.close()
     print("\n" + "=" * 60)
