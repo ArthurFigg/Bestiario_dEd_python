@@ -429,3 +429,11 @@ mover o código flat (`bestiario.py`, `banco_de_dados.py`,
 `analise_bestiario.py`) para os módulos do pacote `bestiario/` preservando o
 comportamento (ainda v1), com os testes; fechar com `/spec-close`. Depois
 seguir a ordem 2→6.
+
+---
+**Encerrado em:** 2026-07-22
+**Versao:** v0.1.0
+**Testes:** 65 passando
+**Specs concluidas:** 6 de 6
+**Commits:** 18
+**Periodo:** 2026-02-08 a 2026-07-22 (9 dias ativos)
