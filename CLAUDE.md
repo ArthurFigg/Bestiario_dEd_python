@@ -106,6 +106,14 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
   1638 ambientes, 527 perícias); `acoes`/`ataques`/`efeitos` vazias até as Specs 4-5.
   Artefato regenerável — fora do git, recriar via opção 4 do menu.
 - [x] `.gitignore` criado — `__pycache__/` e `*.pyc` fora do controle de versão
+- [x] Consulta local-primeiro nos filtros de tipo/CR (opções 2 e 3): consulta o
+  SQLite antes da API v2, com fallback para a v2 quando não há dado local e rótulo
+  de origem `[local]`/`[API]` na saída (Spec 6)
+- [x] Relatórios reescritos para o schema v2 (`ataques.bonus_ataque` no lugar de
+  `acoes.bonus_ataque`) + 4 relatórios ricos (por ambiente, comparação entre tipos,
+  imunidade/resistência a dano, condições impostas); `relatorios.py` com uma função
+  por relatório + orquestradora, executável via menu ("Ver relatórios") ou standalone
+  (Spec 6)
 
 ## O que está incompleto ou pode melhorar
 
@@ -117,8 +125,12 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
   `categoria` de `acoes` é populada (`action`/`legendary_action`/`reaction` de
   `action_type` + `special_ability` de `traits`). `BONUS_ACTION` não existe no
   SRD 2014 (0 de 944 ações), então não é previsto.
-- [ ] **Sem pesquisa no banco local**: todas as buscas de tipo/CR vão para a
-  API mesmo depois de sincronizar. Deveria consultar o SQLite primeiro.
+- [x] ~~**Sem pesquisa no banco local**~~ — **resolvido na Spec 6**: os filtros de
+  tipo/CR (opções 2 e 3) consultam o SQLite primeiro e só caem para a API v2 no
+  fallback, com rótulo de origem `[local]`/`[API]`.
+- [x] ~~**Relatórios limitados ao schema antigo**~~ — **resolvido na Spec 6**:
+  baseline reescrito para o schema v2 + 4 relatórios ricos (por ambiente, comparação
+  entre tipos, imunidade/resistência a dano, condições impostas).
 - [ ] **Sem front-end**: a interface é 100% terminal.
 - [ ] **Sem testes automatizados**.
 - [ ] **Sem `requirements.txt`**: dependências não estão documentadas formalmente.
@@ -233,6 +245,9 @@ para este momento.
 - O banco `bestiario_combate.db` está no schema v2 (SRD 2014): 325 monstros, com
   `acoes`/`ataques`/`efeitos` vazias até as Specs 4-5. É artefato regenerável (fora do
   git; recriar via opção 4 do menu)
+- Os filtros de tipo/CR consultam o **SQLite primeiro**, com a API v2 apenas como
+  fallback — o pressuposto antigo ("toda busca de tipo/CR vai para a API mesmo depois
+  de sincronizar") deixou de valer na Spec 6
 - O código será lido por recrutadores — comentários claros e estrutura
   organizada são tão importantes quanto funcionalidade
 - Preferência por **soluções simples e legíveis** em vez de over-engineering
@@ -243,10 +258,10 @@ para este momento.
 # Instalar dependências
 uv sync
 
-# Menu principal
+# Menu principal (inclui a opção "Ver relatórios")
 python main.py
 
-# Só os relatórios
+# Só os relatórios (standalone)
 python bestiario/relatorios.py
 ```
 

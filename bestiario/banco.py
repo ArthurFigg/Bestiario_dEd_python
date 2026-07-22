@@ -176,6 +176,33 @@ def registrar_monstro(conexao, monstro):
     conexao.commit()
 
 
+def consultar_por_tipo(conexao, tipo):
+    """Monstros locais daquele tipo (chave canônica da v2, ex: 'dragon')."""
+    cursor = conexao.execute(
+        "SELECT nome, tipo, nivel_desafio FROM monstros WHERE tipo = ?",
+        (tipo,),
+    )
+    return cursor.fetchall()
+
+
+def consultar_por_cr(conexao, cr):
+    """Monstros locais com aquele challenge rating. CR não-numérico → lista vazia.
+
+    O parse fica aqui (camada de dados) porque a coluna é REAL: converter o input é
+    pré-condição da query. Input inválido não é erro — é 'nenhum resultado local',
+    e o menu segue para o fallback da API.
+    """
+    try:
+        valor = float(cr)
+    except (TypeError, ValueError):
+        return []
+    cursor = conexao.execute(
+        "SELECT nome, tipo, nivel_desafio FROM monstros WHERE nivel_desafio = ?",
+        (valor,),
+    )
+    return cursor.fetchall()
+
+
 def _gravar_monstro(cursor, m):
     tamanho = (m.get("size") or {}).get("key")
     tipo = (m.get("type") or {}).get("key")

@@ -2,7 +2,12 @@ import sqlite3
 
 import pytest
 
-from bestiario.banco import criar_base_de_dados, registrar_monstro
+from bestiario.banco import (
+    consultar_por_cr,
+    consultar_por_tipo,
+    criar_base_de_dados,
+    registrar_monstro,
+)
 
 
 def _adult_red_dragon():
@@ -352,3 +357,26 @@ def test_reingestao_nao_duplica_efeitos(conexao):
         ("Dragao de Teste",),
     ).fetchone()[0]
     assert total == 1
+
+
+def test_consultar_por_tipo_retorna_so_o_tipo_pedido(conexao):
+    registrar_monstro(conexao, _adult_red_dragon())
+    registrar_monstro(conexao, _guarda_com_spear())
+    linhas = consultar_por_tipo(conexao, "dragon")
+    assert [linha[0] for linha in linhas] == ["Adult Red Dragon"]
+
+
+def test_consultar_por_tipo_sem_match_retorna_lista_vazia(conexao):
+    registrar_monstro(conexao, _adult_red_dragon())
+    assert consultar_por_tipo(conexao, "aberration") == []
+
+
+def test_consultar_por_cr_encontra_por_valor_numerico(conexao):
+    registrar_monstro(conexao, _adult_red_dragon())
+    linhas = consultar_por_cr(conexao, "17")
+    assert [linha[0] for linha in linhas] == ["Adult Red Dragon"]
+
+
+def test_consultar_por_cr_invalido_retorna_lista_vazia_sem_quebrar(conexao):
+    registrar_monstro(conexao, _adult_red_dragon())
+    assert consultar_por_cr(conexao, "abc") == []

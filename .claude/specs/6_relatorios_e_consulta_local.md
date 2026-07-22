@@ -3,6 +3,7 @@
 **Ordem:** 6 de 6
 **Depende de:** Specs 1 (fundação), 2 (cliente API v2), 3 (schema + ingestão), 4 (ações + ataques) e 5 (efeitos)
 **Revisão:** aprovada
+**Score:** 5
 
 ## O que faz
 Faz os filtros de tipo/CR do menu consultarem o SQLite antes de chamar a API (com fallback para a v2 quando não há dado local) e reescreve os relatórios para o novo schema, somando quatro relatórios ricos que exploram as tabelas normalizadas das Specs 3-5.
@@ -78,3 +79,6 @@ Seção adicionada retroativamente (spec anterior à regra "spec declara e /spec
 - O que já funciona → adicionar consulta local-primeiro nos filtros de tipo/CR (opções 2 e 3) com fallback para a API v2 e rótulo de origem `[local]`/`[API]`; relatórios baseline reescritos para o schema novo (`ataques.bonus_ataque` no lugar de `acoes.bonus_ataque`); 4 relatórios ricos (por ambiente, comparação entre tipos, imunidade/resistência a dano, condições impostas).
 - Como rodar → o menu ganha a opção "Ver relatórios"; os relatórios seguem executáveis standalone via `python bestiario/relatorios.py`.
 - Contexto para decisões futuras → o pressuposto "todas as buscas de tipo/CR vão para a API mesmo depois de sincronizar" deixa de valer (agora é local primeiro, API como fallback).
+
+---
+**Status:** concluida em 2026-07-22
