@@ -131,34 +131,39 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
 - [x] ~~**Relatórios limitados ao schema antigo**~~ — **resolvido na Spec 6**:
   baseline reescrito para o schema v2 + 4 relatórios ricos (por ambiente, comparação
   entre tipos, imunidade/resistência a dano, condições impostas).
-- [ ] **Sem front-end**: a interface é 100% terminal.
-- [ ] **Sem testes automatizados**.
-- [ ] **Sem `requirements.txt`**: dependências não estão documentadas formalmente.
+- [ ] **Sem front-end**: a interface é 100% terminal (front-end web segue como
+  Spec 7 futura, junto da tradução PT-BR).
+- [x] ~~**Sem testes automatizados**~~ — **resolvido**: suíte pytest com 65 testes
+  espelhando o pacote (cliente API, banco/ingestão, extração, relatórios e
+  orquestração dos filtros); mocks só na fronteira HTTP.
+- [x] ~~**Sem `requirements.txt`**~~ — **resolvido de forma diferente**: dependências
+  documentadas em `pyproject.toml` (com teto de versão) e gerenciadas por `uv`,
+  conforme a regra global do CLAUDE.md.
 
 ## Próximas melhorias planejadas — status (specs)
 
 As melhorias abaixo foram especificadas no conjunto de 6 specs em
-`.claude/specs/` (todas com `Revisão: aprovada` após o `/spec-review` da
-Sessão 5). Implementação ainda não iniciada — ordem em "Plano de 6 specs".
+`.claude/specs/` e **todas foram implementadas e concluídas** (release v0.1.0,
+2026-07-22). A ordem seguida foi a do "Plano de 6 specs".
 
 1. **Enriquecer o schema** (imunidades, resistências, vulnerabilidades,
    imunidades a condições, ambientes, alinhamento, sentidos, velocidade,
-   saves) → **Spec 3** (`schema_e_ingestao_monstro`) — aprovada.
+   saves) → **Spec 3** (`schema_e_ingestao_monstro`) — concluída.
 2. **Coluna de categoria em `acoes` + capturar categorias de ação** →
-   **Spec 4** (`extracao_acoes_ataques`) — aprovada. Ressalva empírica:
+   **Spec 4** (`extracao_acoes_ataques`) — concluída. Ressalva empírica:
    `BONUS_ACTION` não existe no SRD 2014 (0 de 944 ações); a categoria cobre
    `action`/`legendary_action`/`reaction`/`special_ability`.
 3. **Consulta local primeiro** → **Spec 6** (`relatorios_e_consulta_local`) —
-   aprovada. Decisão: local primeiro, com a API v2 como fallback.
+   concluída. Decisão: local primeiro, com a API v2 como fallback.
 4. **Documentar dependências** → resolvido de forma diferente: `uv` +
    `pyproject.toml` com teto de versão na **Spec 1** (`fundacao`), em vez de
    `requirements.txt` (regra do CLAUDE.md global).
 5. **Expandir relatórios** (por ambiente, comparação entre tipos, imunidade/
-   resistência a dano, condições impostas) → **Spec 6** — aprovada.
+   resistência a dano, condições impostas) → **Spec 6** — concluída.
 6. **Front-end web** — ainda **não especificado**; segue como passo futuro
    (junto da tradução PT-BR, planejada como Spec 7 — ver Sessão 4).
 
-Não mapeadas 1:1 na lista antiga, mas parte do plano: **Spec 2**
+Igualmente concluídas, embora não mapeadas 1:1 na lista antiga: **Spec 2**
 (migração para a API v2, SRD 2014) e **Spec 5** (extração de efeitos —
 save DC, condição, área; parte lossy isolada).
 
