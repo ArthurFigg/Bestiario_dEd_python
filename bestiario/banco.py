@@ -2,14 +2,15 @@
 
 Schema normalizado de 8 tabelas: `monstros` (nível monstro) + 4 tabelas de lista
 (dano, condição, ambiente, perícia) + `acoes`/`ataques` (Spec 4) e `efeitos`
-(criada vazia; Spec 5). A ingestão lê o dict estruturado da API v2 (SRD 2014) e grava
-nível monstro, tabelas de lista e ações/ataques. Valores guardados em chaves canônicas
-em inglês da v2 (`fire`, `dragon`) — tradução é camada de apresentação futura.
+(Spec 5). A ingestão lê o dict estruturado da API v2 (SRD 2014) e grava nível
+monstro, tabelas de lista, ações/ataques e efeitos (save/condição/área, extraídos
+do `desc` — parte assumidamente lossy). Valores guardados em chaves canônicas em
+inglês da v2 (`fire`, `dragon`) — tradução é camada de apresentação futura.
 """
 
 import sqlite3
 
-from bestiario.extracao import extrair_ataque
+from bestiario.extracao import extrair_ataque, extrair_efeitos
 
 # action_type da v2 → valor da coluna `categoria` (traits usam 'special_ability').
 CATEGORIA_POR_ACTION_TYPE = {
@@ -274,7 +275,12 @@ def _inserir_tabelas_de_lista(cursor, m):
 
 
 def _apagar_acoes(cursor, nome):
-    """Apaga ações e ataques do monstro — filhos (`ataques`) antes do pai (`acoes`)."""
+    """Apaga efeitos, ataques e ações do monstro — filhos antes do pai, sem órfãos."""
+    cursor.execute(
+        "DELETE FROM efeitos WHERE acao_id IN "
+        "(SELECT id FROM acoes WHERE monstro_nome = ?)",
+        (nome,),
+    )
     cursor.execute(
         "DELETE FROM ataques WHERE acao_id IN "
         "(SELECT id FROM acoes WHERE monstro_nome = ?)",
@@ -287,12 +293,15 @@ def _inserir_acoes_e_ataques(cursor, m):
     nome = m.get("name")
     for acao in m.get("actions") or []:
         categoria = CATEGORIA_POR_ACTION_TYPE.get(acao.get("action_type"))
+        desc = acao.get("desc", "")
         acao_id = _inserir_acao(cursor, nome, categoria, acao)
         for attack in acao.get("attacks") or []:
-            _inserir_ataque(cursor, acao_id, acao.get("desc", ""), attack)
+            _inserir_ataque(cursor, acao_id, desc, attack)
+        _inserir_efeitos(cursor, acao_id, desc)
     # traits são habilidades passivas: viram `acoes` special_ability, sem ataque.
     for trait in m.get("traits") or []:
-        _inserir_acao(cursor, nome, "special_ability", trait)
+        acao_id = _inserir_acao(cursor, nome, "special_ability", trait)
+        _inserir_efeitos(cursor, acao_id, trait.get("desc", ""))
 
 
 def _inserir_acao(cursor, nome, categoria, acao):
@@ -330,3 +339,24 @@ def _inserir_ataque(cursor, acao_id, desc, attack):
             d["dano_extra_tipo"],
         ),
     )
+
+
+def _inserir_efeitos(cursor, acao_id, desc):
+    for efeito in extrair_efeitos(desc):
+        cursor.execute(
+            """
+            INSERT INTO efeitos (
+                acao_id, cd_resistencia, atributo_resistencia,
+                condicao, area_tipo, area_tamanho
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                acao_id,
+                efeito["cd_resistencia"],
+                efeito["atributo_resistencia"],
+                efeito["condicao"],
+                efeito["area_tipo"],
+                efeito["area_tamanho"],
+            ),
+        )

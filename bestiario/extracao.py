@@ -1,9 +1,15 @@
-"""Extração híbrida de ataques: array `attacks[]` estruturado da v2 + regex no `desc`.
+"""Extração híbrida de ataques + extração 100% regex de efeitos, a partir do `desc`.
 
-O `attacks[]` enumera os ataques e traz acerto/alcance confiáveis (`to_hit_mod`,
-`reach`, `range`), mas o dano estruturado é lixo (`damage_type` ~99% "thunder",
-`damage_bonus` ~99% null). Por isso o dano vem da regex sobre o bloco "Hit:" do
-`desc`; o estruturado só entra como fallback quando a regex não casa. Funções puras.
+Ataques: o `attacks[]` enumera os ataques e traz acerto/alcance confiáveis
+(`to_hit_mod`, `reach`, `range`), mas o dano estruturado é lixo (`damage_type`
+~99% "thunder", `damage_bonus` ~99% null). Por isso o dano vem da regex sobre o
+bloco "Hit:" do `desc`; o estruturado só entra como fallback quando a regex não
+casa.
+
+Efeitos (save/condição/área): a v2 não tem nenhum campo estruturado pra isso —
+é 100% regex sobre o `desc`, a parte assumidamente lossy da ingestão (Spec 5).
+
+Todas as funções são puras (string/dict → dict ou lista de dicts), sem I/O.
 """
 
 import re
@@ -108,3 +114,120 @@ def _dano_fallback(attack):
         "dano_extra_bonus": None,
         "dano_extra_tipo": None,
     }
+
+
+# --- Extração de efeitos (save / condição / área) — Spec 5 ---
+
+# "DC 21 Dexterity saving throw" → CD do save principal contra o monstro.
+_SAVE = re.compile(
+    r"DC\s+(\d+)\s+"
+    r"(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+"
+    r"saving throw",
+    re.IGNORECASE,
+)
+# "escape DC 14" (agarrar/prender) → CD de escape, sem atributo (FOR/DES à escolha).
+_ESCAPE = re.compile(r"escape DC\s+(\d+)", re.IGNORECASE)
+
+# As 15 condições canônicas do SRD. "knocked prone" casa via a palavra "prone" isolada.
+_CONDICOES_CANONICAS = [
+    "blinded",
+    "charmed",
+    "deafened",
+    "exhaustion",
+    "frightened",
+    "grappled",
+    "incapacitated",
+    "invisible",
+    "paralyzed",
+    "petrified",
+    "poisoned",
+    "prone",
+    "restrained",
+    "stunned",
+    "unconscious",
+]
+_CONDICAO = re.compile(r"\b(" + "|".join(_CONDICOES_CANONICAS) + r")\b", re.IGNORECASE)
+
+# "60-foot cone" (espaço) ou "20-foot-radius sphere" (hífen, forma mais comum
+# do SRD pra radius) → área geométrica nomeada.
+_AREA_GEOMETRICA = re.compile(
+    r"(\d+)-foot[\s-]+(cone|line|cube|sphere|radius)", re.IGNORECASE
+)
+# "within 120 feet" / "within 10 ft." → emanação ao redor do monstro.
+_EMANACAO = re.compile(r"within\s+(\d+)\s*(?:ft\.?|feet)", re.IGNORECASE)
+
+
+def extrair_efeitos(desc):
+    """Save (CD+atributo), condições e área a partir do `desc` de uma ação/trait.
+
+    Retorna uma linha por condição encontrada, todas compartilhando o mesmo save/
+    área da ação (múltiplos saves distintos na mesma ação herdam o principal —
+    limitação lossy aceita). Sem condição mas com save/área: uma linha com
+    `condicao=None`. Sem save, condição nem área: lista vazia (não gera efeito).
+    """
+    cd, atributo = _extrair_save_principal(desc)
+    area_tipo, area_tamanho = _extrair_area(desc)
+    condicoes = _extrair_condicoes(desc)
+
+    if not condicoes:
+        if cd is None and area_tipo is None:
+            return []
+        return [_montar_linha_efeito(cd, atributo, None, area_tipo, area_tamanho)]
+
+    return [
+        _montar_linha_efeito(cd, atributo, condicao, area_tipo, area_tamanho)
+        for condicao in condicoes
+    ]
+
+
+def _montar_linha_efeito(cd, atributo, condicao, area_tipo, area_tamanho):
+    return {
+        "cd_resistencia": cd,
+        "atributo_resistencia": atributo,
+        "condicao": condicao,
+        "area_tipo": area_tipo,
+        "area_tamanho": area_tamanho,
+    }
+
+
+def _extrair_save_principal(desc):
+    # O save considerado é o primeiro DC que aparece no texto (save ou escape),
+    # não necessariamente o primeiro regex que casar — por isso compara posições.
+    candidatos = []
+    m = _SAVE.search(desc)
+    if m:
+        candidatos.append((m.start(), int(m.group(1)), m.group(2).lower()))
+    m = _ESCAPE.search(desc)
+    if m:
+        candidatos.append((m.start(), int(m.group(1)), None))
+    if not candidatos:
+        return None, None
+    candidatos.sort(key=lambda c: c[0])
+    _, cd, atributo = candidatos[0]
+    return cd, atributo
+
+
+def _extrair_condicoes(desc):
+    encontradas = []
+    for m in _CONDICAO.finditer(desc):
+        condicao = m.group(1).lower()
+        if condicao not in encontradas:
+            encontradas.append(condicao)
+    return encontradas
+
+
+def _extrair_area(desc):
+    # Mesma lógica do save: a primeira área que aparece no texto, geométrica ou
+    # emanação, vence — não a ordem de tentativa dos regexes.
+    candidatos = []
+    m = _AREA_GEOMETRICA.search(desc)
+    if m:
+        candidatos.append((m.start(), int(m.group(1)), m.group(2).lower()))
+    m = _EMANACAO.search(desc)
+    if m:
+        candidatos.append((m.start(), int(m.group(1)), "emanation"))
+    if not candidatos:
+        return None, None
+    candidatos.sort(key=lambda c: c[0])
+    _, tamanho, tipo = candidatos[0]
+    return tipo, tamanho

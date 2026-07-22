@@ -2,6 +2,7 @@
 
 **Ordem:** 5 de 6
 **Depende de:** Specs 1 (fundação), 2 (cliente API v2), 3 (schema + ingestão do monstro) e 4 (ações + ataques)
+**Score:** 4
 **Revisão:** aprovada
 
 ## O que faz
@@ -79,3 +80,6 @@ Parseia o campo `desc` de cada linha de `acoes` (via regex) e popula a tabela `e
 Seção adicionada retroativamente (spec anterior à regra "spec declara e /spec-close sincroniza o CLAUDE.md").
 - O que já funciona → adicionar extração de efeitos populando a tabela `efeitos`: save (CD + atributo, incluindo escape DC), condição imposta (15 condições canônicas, 1 linha por condição) e área (geométrica ou emanação `within X ft`), tudo por regex sobre o `desc` (parte assumidamente lossy — a v2 não estrutura nada disso).
 - (A tabela `efeitos` já é documentada no schema pela Spec 3; nenhuma outra seção do CLAUDE.md afirma algo que esta spec torne falso.)
+
+---
+**Status:** concluida em 2026-07-22

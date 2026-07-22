@@ -89,6 +89,10 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
 - [x] População de `acoes` (com coluna `categoria`) e `ataques` via extração
   híbrida — array `attacks[]` estruturado como enumerador + regex do `desc` como
   gabarito do dano; fallback para o estruturado quando a regex falha (Spec 4)
+- [x] População de `efeitos` (save CD + atributo, incluindo escape DC; condição
+  imposta — 15 condições canônicas do SRD, uma linha por condição; área
+  geométrica nomeada ou emanação `within X ft`) — 100% regex sobre o `desc`,
+  parte assumidamente lossy da ingestão (Spec 5)
 - [x] Relatórios básicos: top 5 mais resistentes, top 5 ataques, letalidade por tipo
 - [x] Git configurado e com histórico
 - [x] Guard `if __name__ == "__main__"` em `bestiario.py` — menu não roda ao importar

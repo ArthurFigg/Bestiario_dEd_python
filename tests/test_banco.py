@@ -129,6 +129,28 @@ def _guarda_com_spear():
     }
 
 
+def _dragao_com_folego():
+    """Fixture minima com Fire Breath (save DC + area geometrica) para efeitos."""
+    return {
+        "name": "Dragao de Teste",
+        "size": {"key": "huge"},
+        "type": {"key": "dragon"},
+        "actions": [
+            {
+                "name": "Fire Breath (Recharge 5-6)",
+                "action_type": "ACTION",
+                "desc": (
+                    "The dragon exhales fire in a 60-foot cone. Each creature "
+                    "in that area must make a DC 21 Dexterity saving throw, "
+                    "taking 63 (18d6) fire damage on a failed save, or half "
+                    "as much damage on a successful one."
+                ),
+                "attacks": [],
+            }
+        ],
+    }
+
+
 @pytest.fixture
 def conexao(tmp_path):
     con = criar_base_de_dados(str(tmp_path / "teste.db"))
@@ -216,8 +238,10 @@ def test_reingestao_nao_duplica_linhas_de_lista(conexao):
     assert cursor.fetchone()[0] == 2
 
 
-def test_efeitos_fica_vazia_apos_ingestao(conexao):
-    # acoes/ataques passam a ser populadas na Spec 4; efeitos só na Spec 5.
+def test_efeitos_fica_vazia_quando_nenhuma_acao_tem_save_condicao_ou_area(conexao):
+    # Nenhuma acao/trait do fixture (_adult_red_dragon) tem save/condicao/area no
+    # desc — efeitos fica vazia nao porque a extracao (Spec 5) esta ausente, mas
+    # porque nao ha nada pra extrair desse monstro especifico.
     registrar_monstro(conexao, _adult_red_dragon())
     total = conexao.execute("SELECT COUNT(*) FROM efeitos").fetchone()[0]
     assert total == 0
@@ -305,3 +329,26 @@ def test_reingestao_nao_duplica_acoes_nem_ataques(conexao):
         ("Adult Red Dragon",),
     ).fetchone()[0]
     assert (acoes, ataques) == (3, 1)
+
+
+def test_ingestao_popula_efeitos_com_save_e_area(conexao):
+    registrar_monstro(conexao, _dragao_com_folego())
+    linha = conexao.execute(
+        "SELECT e.cd_resistencia, e.atributo_resistencia, e.condicao, "
+        "e.area_tipo, e.area_tamanho "
+        "FROM efeitos e JOIN acoes a ON e.acao_id = a.id "
+        "WHERE a.monstro_nome = ?",
+        ("Dragao de Teste",),
+    ).fetchone()
+    assert linha == (21, "dexterity", None, "cone", 60)
+
+
+def test_reingestao_nao_duplica_efeitos(conexao):
+    registrar_monstro(conexao, _dragao_com_folego())
+    registrar_monstro(conexao, _dragao_com_folego())
+    total = conexao.execute(
+        "SELECT COUNT(*) FROM efeitos e JOIN acoes a ON e.acao_id = a.id "
+        "WHERE a.monstro_nome = ?",
+        ("Dragao de Teste",),
+    ).fetchone()[0]
+    assert total == 1

@@ -1,4 +1,4 @@
-from bestiario.extracao import extrair_ataque
+from bestiario.extracao import extrair_ataque, extrair_efeitos
 
 # Bite do Adult Red Dragon (estrutura real da v2): estruturado confiável em
 # to_hit/reach, mas damage_type='thunder' é lixo — o dano vem do desc.
@@ -128,3 +128,95 @@ def test_melee_or_ranged_sem_reach_e_ranged():
         20,
         60,
     )
+
+
+# --- extrair_efeitos (Spec 5) ---
+
+
+def test_save_sem_condicao_gera_uma_linha_com_condicao_none():
+    desc = (
+        "Each creature in a 60-foot cone must make a DC 21 Dexterity saving "
+        "throw, taking 63 (18d6) fire damage on a failed save, or half as "
+        "much damage on a successful one."
+    )
+    assert extrair_efeitos(desc) == [
+        {
+            "cd_resistencia": 21,
+            "atributo_resistencia": "dexterity",
+            "condicao": None,
+            "area_tipo": "cone",
+            "area_tamanho": 60,
+        }
+    ]
+
+
+def test_save_com_condicao_e_emanacao():
+    desc = (
+        "Each creature within 120 feet of the dragon that can see it must "
+        "succeed on a DC 19 Wisdom saving throw or become frightened for 1 minute."
+    )
+    assert extrair_efeitos(desc) == [
+        {
+            "cd_resistencia": 19,
+            "atributo_resistencia": "wisdom",
+            "condicao": "frightened",
+            "area_tipo": "emanation",
+            "area_tamanho": 120,
+        }
+    ]
+
+
+def test_duas_condicoes_geram_duas_linhas_compartilhando_o_save():
+    desc = (
+        "The target is grappled (escape DC 16) and restrained until the grapple ends."
+    )
+    linhas = extrair_efeitos(desc)
+    assert {linha["condicao"] for linha in linhas} == {"grappled", "restrained"}
+
+
+def test_duas_condicoes_compartilham_o_mesmo_cd_e_atributo():
+    desc = (
+        "The target is grappled (escape DC 16) and restrained until the grapple ends."
+    )
+    linhas = extrair_efeitos(desc)
+    assert all(
+        (linha["cd_resistencia"], linha["atributo_resistencia"]) == (16, None)
+        for linha in linhas
+    )
+
+
+def test_escape_dc_usa_atributo_resistencia_none():
+    desc = "The target is grappled (escape DC 14)."
+    linhas = extrair_efeitos(desc)
+    assert (linhas[0]["cd_resistencia"], linhas[0]["atributo_resistencia"]) == (
+        14,
+        None,
+    )
+
+
+def test_knocked_prone_normaliza_para_prone():
+    desc = "If the target is a Large or smaller creature, it is knocked prone."
+    assert extrair_efeitos(desc)[0]["condicao"] == "prone"
+
+
+def test_acao_sem_save_condicao_ou_area_nao_gera_linha():
+    assert extrair_efeitos("The dragon makes three attacks.") == []
+
+
+def test_within_ft_abreviado_vira_emanacao():
+    desc = (
+        "Each creature within 10 ft. of the dragon must succeed on a Dexterity check."
+    )
+    linhas = extrair_efeitos(desc)
+    assert (linhas[0]["area_tipo"], linhas[0]["area_tamanho"]) == ("emanation", 10)
+
+
+def test_radius_hifenizado_com_sphere_vira_area_radius():
+    # Forma mais comum do SRD pra radius: "-foot-radius" hifenizado, não
+    # espaçado como "-foot cone" — regressão do achado da revisão da Spec 5.
+    desc = (
+        "Each creature in a 20-foot-radius sphere centered on that point must "
+        "make a DC 15 Constitution saving throw."
+    )
+    linhas = extrair_efeitos(desc)
+    assert (linhas[0]["area_tipo"], linhas[0]["area_tamanho"]) == ("radius", 20)
