@@ -3,7 +3,7 @@
 **Ordem:** 8 de 9
 **Depende de:** Spec 7a (núcleo de consulta)
 **Score:** 6
-**Revisão:** pendente
+**Revisão:** aprovada
 
 ## O que faz
 Expõe o bestiário como API HTTP de leitura, implementando o `openapi.yaml` já commitado, sem escrever nenhuma consulta própria — tudo passa pelo núcleo da Spec 7a.
@@ -33,16 +33,18 @@ Expõe o bestiário como API HTTP de leitura, implementando o `openapi.yaml` já
 - Quando o nome não existe, responde **404** com corpo RFC 7807.
 - A busca por nome no caminho é exata e não diferencia maiúsculas — `/monstros/adult red dragon` acha o mesmo que `/monstros/Adult%20Red%20Dragon`. Usa `buscar_monstro` do núcleo, **não** o filtro `nome`.
 - Quando chega `GET /api/v1/monstros?nome=drag`, responde 200 com todos os monstros cujo nome contém o trecho, sem diferenciar maiúsculas. É este parâmetro que a busca incremental do site consome — e é diferente da busca exata do caminho.
-- Quando chega `ordenar_por` em `/monstros` ou `/ataques`, o resultado sai ordenado por aquela coluna, no sentido de `sentido`. Valor fora do enum **não** é erro: cai na ordenação padrão, como o núcleo define.
+- Quando chega `ordenar_por` em `/monstros` ou `/ataques`, o resultado sai ordenado por aquela coluna. Valor fora do enum **não** é erro: cai na ordenação padrão, como o núcleo define.
+- **`sentido` existe só em `/monstros`.** Em `/ataques` a ordenação é sempre decrescente, como o contrato declara na descrição de `ordenar_por` — maior bônus e maior dano primeiro é a única leitura útil de uma lista de ataques. Aceitar `sentido` ali criaria parâmetro não documentado.
 - Quando chega `GET /api/v1/ataques`, responde 200 com envelope de paginação, cada item sendo um ataque com o monstro e a ação donos.
 - Quando chega `GET /api/v1/comparacoes?por=tipo`, responde 200 com uma lista de linhas agregadas.
 - Quando `por` está ausente em `/comparacoes`, responde **422** — é o único parâmetro **de consulta** obrigatório da API (o `nome` do caminho de `/monstros/{nome}` também é obrigatório).
 - Quando chega `GET /api/v1/resumo`, responde 200 com uma linha só, mesmo que nenhum monstro atenda aos filtros (nesse caso, contagem zero e médias nulas).
-- Quando chega `GET /api/v1/vocabulario`, responde 200 com as listas de valores aceitos, lidas do banco.
+- Quando chega `GET /api/v1/vocabulario`, responde 200 com as listas de valores aceitos, lidas do banco. O núcleo devolve **uma entrada por filtro, com contagem**; a rota **remapeia** para as seis chaves do schema `Vocabulario` (`tipos`, `tamanhos`, `alinhamentos`, `ambientes`, `tipos_dano`, `condicoes`) e descarta as contagens. Remapear dicionário não é escrever SQL — a regra de camadas continua valendo. Decisão do usuário em 2026-07-26.
 
 ### Filtros
 
-- Os quatro endpoints que aceitam filtro aceitam **os mesmos dez filtros de domínio**, com os mesmos nomes: `tipo`, `tamanho`, `alinhamento`, `desafio_min`, `desafio_max`, `ambiente`, `resiste_a`, `imune_a`, `vulneravel_a`, `imune_a_condicao`, `impoe` e `combinar`. Filtro que mude de nome entre endpoints é defeito, não variação.
+- Os quatro endpoints que aceitam filtro aceitam **os mesmos doze filtros de domínio**, com os mesmos nomes: `tipo`, `tamanho`, `alinhamento`, `desafio_min`, `desafio_max`, `ambiente`, `resiste_a`, `imune_a`, `vulneravel_a`, `imune_a_condicao`, `impoe`, `relacao` — mais o `combinar`. Filtro que mude de nome entre endpoints é defeito, não variação.
+- `relacao` (`imunidade`/`resistencia`/`vulnerabilidade`) foi acrescentado ao contrato em 2026-07-26. Combinado com `por=tipo_dano` em `/comparacoes`, é o que produz a contagem por tipo de dano dentro de uma relação — sem ele o agrupamento misturaria as três.
 - Os parâmetros **de apresentação** não são uniformes, e o contrato diz onde cada um vale: `nome` só em `/monstros`; `limite` e `deslocamento` só em `/monstros` e `/ataques`; `ordenar_por` e `sentido` só onde há lista. `/comparacoes` e `/resumo` não paginam — a resposta já é o agregado.
 - Quando um filtro é omitido, ele não restringe nada.
 - Quando `combinar` é omitido, vale `todos`.
@@ -59,6 +61,7 @@ Nenhuma dessas regras é implementada na rota: todas vêm prontas do núcleo. Es
 
 ### Erros
 
+- **A conexão SQLite chega às rotas por dependência do FastAPI**, não por import de módulo nem por variável global. É o único ponto de substituição que permite ao teste apontar para a fixture em memória via `app.dependency_overrides` — sem ele, ou o teste toca o `bestiario_combate.db` real (proibido: está fora do git e não existe no CI) ou os critérios de banco vazio e de erro não fecham. A mesma dependência serve à Spec 9a, que roda o site sobre a mesma aplicação.
 - Todo erro sai em `application/problem+json` no formato RFC 7807, com `type`, `title`, `status`, `detail` e `instance`.
 - Quando o núcleo levanta `ValorDeFiltroInvalido`, responde **422** e o `detail` nomeia o parâmetro, o valor recebido e remete a `/vocabulario`. Quem errou `resiste_a=fogo` precisa saber onde descobrir que o certo é `fire`.
 - Quando o núcleo levanta `FiltroDesconhecido`, responde **422**.
@@ -74,6 +77,7 @@ Nenhuma dessas regras é implementada na rota: todas vêm prontas do núcleo. Es
 ### Contrato e documentação
 
 - O `openapi.yaml` commitado continua sendo o contrato; `/docs` é a vista dele gerada pelo código. O teste de contrato é o que impede os dois de divergirem.
+- **Cada rota declara explicitamente `responses` para o `404` (só em `/monstros/{nome}`) e para a resposta `default` em `application/problem+json`.** O FastAPI gera sozinho apenas `200` e `422`; sem a declaração, o `404` e o `default` — que é onde mora o `503` de base não sincronizada — existiriam no contrato e não no gerado, e o teste de contrato passaria sem cobrir justamente as respostas que o projeto mais depende de não perder.
 
 ## Critérios verificáveis
 
@@ -85,6 +89,9 @@ Nenhuma dessas regras é implementada na rota: todas vêm prontas do núcleo. Es
 - [ ] Teste confirma que a ficha omite sentido ausente e deslocamento zero, e traz só os testes de resistência proficientes.
 - [ ] Teste confirma que `/docs` responde 200 e que nenhuma rota de HTML aparece no esquema.
 - [ ] Teste de contrato confirma que, para cada operação do `openapi.yaml`, todo parâmetro e todo campo de resposta prometidos **existem** no gerado. O gerado pode ter mais; não pode ter menos.
+- [ ] Teste de contrato confirma que **todo status code prometido** por cada operação existe no gerado — incluindo o `default` das seis e o `404` de `/monstros/{nome}`.
+- [ ] Teste confirma que `/ataques` **não** aceita `sentido`: a ordenação é sempre decrescente.
+- [ ] Teste confirma que `GET /api/v1/vocabulario` responde com exatamente as seis chaves do schema `Vocabulario`, sem contagem, apesar de o núcleo devolver onze entradas com contagem.
 - [ ] Teste confirma `GET /api/v1/monstros` responde 200 e o corpo tem `total`, `limite`, `deslocamento` e `itens`.
 - [ ] Teste confirma `GET /api/v1/monstros/Adult Red Dragon` responde 200 e traz ações aninhadas com ataques dentro.
 - [ ] Teste confirma que nome inexistente responde 404 com `content-type: application/problem+json`.
@@ -103,8 +110,9 @@ Nenhuma dessas regras é implementada na rota: todas vêm prontas do núcleo. Es
 - `api/app.py` — NOVO. Cria a aplicação FastAPI, **inclui** o roteador com o prefixo `/api/v1`, registra os tratadores de erro e configura título e versão a partir do contrato. Executável sozinho, para esta spec fechar sem depender da Spec 9.
 - `api/modelos.py` — NOVO. Modelos Pydantic que materializam os schemas do contrato: `MonstroResumido`, `Monstro`, `Acao`, `Ataque`, `AtaqueComMonstro`, `Efeito`, `Atributos`, `Atributo`, `TesteDeResistencia`, `Sentidos`, `Deslocamento`, `Pericia`, `ListaDeMonstros`, `ListaDeAtaques`, `LinhaDeComparacao`, `Resumo`, `Vocabulario`, `Problema`.
 - `api/rotas.py` — NOVO. Um roteador **sem prefixo** com os 6 endpoints. Cada um monta filtros, chama o núcleo e serializa. Os parâmetros de filtro ficam numa dependência compartilhada, para os quatro endpoints filtráveis não repetirem a lista.
-- `api/erros.py` — NOVO. Tratadores que convertem `ValorDeFiltroInvalido`, `FiltroDesconhecido`, o erro de validação do FastAPI e a base vazia em respostas RFC 7807.
-- `tests/api/test_rotas.py` — NOVO. Via `TestClient`, contra banco de teste em memória no schema da Spec 3.
+- `api/erros.py` — NOVO. Tratadores que convertem `ValorDeFiltroInvalido`, `FiltroDesconhecido`, o erro de validação do FastAPI e a base vazia em respostas RFC 7807. Expõe **`registrar_tratadores(app)`**, uma função única que `api/app.py` e `web/app.py` chamam. Incluir o roteador leva as rotas, não os tratadores: sem essa função, `web.app:app` — que o CLAUDE.md documenta como a entrada real — devolveria 500 onde a API devolve 422, e os testes desta spec, que rodam contra `api.app:app`, não pegariam a regressão.
+- `tests/conftest.py` — NOVO. A fixture de banco em memória no schema da Spec 3, **compartilhada com o site**. Nasce aqui porque esta spec vem antes da 9a; a 9a e as demais a ampliam em vez de criar a sua. Duas fixtures do mesmo schema com pressupostos independentes divergem em silêncio, e os critérios desta spec exigem monstros nomeados (`Adult Red Dragon`, `Goblin`, dois nomes contendo "drag") que a fixture do site também precisa ter.
+- `tests/api/test_rotas.py` — NOVO. Via `TestClient`, contra a fixture compartilhada de `tests/conftest.py`.
 - `tests/api/test_contrato.py` — NOVO. Compara o `openapi.yaml` com o OpenAPI gerado pelo app.
 - `pyproject.toml` — acrescenta `fastapi`, `uvicorn` de produção e `httpx`, `pyyaml` de desenvolvimento, com teto de versão.
 

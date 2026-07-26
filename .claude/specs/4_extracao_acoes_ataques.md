@@ -83,4 +83,29 @@ Seção adicionada retroativamente (spec anterior à regra "spec declara e /spec
 - Schema do banco de dados → garantir que a observação antiga "Ações abrangem `actions`/`special_abilities`/`legendary_actions`/`reactions` — todas unificadas na mesma tabela sem distinção de categoria" não sobreviva (agora há `categoria` e os ataques ficam em tabela própria). Se a Spec 3 já reescreveu a seção, aqui é só conferir.
 
 ---
-**Status:** concluida em 2026-07-18
+**Revisao 1** — 2026-07-26
+
+O que muda: a tabela `ataques` ganha duas colunas, `dano_medio` e `dano_extra_medio`
+(REAL, anulaveis), e a ingestao passa a grava-las usando `media_de_dado` — a mesma
+formula `n × (faces + 1) / 2 + bonus` que a Spec 7a define em `calculos.py`. Ataque
+sem dado valido grava NULL: ausencia de dano nao e erro. O DDL fica em `banco.py`,
+criado pela Spec 3; esta revisao o estende e acrescenta nota de supersessao na Spec 3,
+por decisao do usuario em 2026-07-26 — a coluna e derivada da extracao, entao quem a
+calcula e quem a possui. Escopo: `banco.py`, `tests/test_banco.py` e o re-sync do
+`bestiario_combate.db`.
+
+Motivo: a Spec 7a precisa de `dano_medio` como coluna de ordenacao. O `openapi.yaml`
+poe `dano_medio` no enum de `ordenar_por` de `/monstros` e `/ataques`, e esses
+endpoints paginam com `limite`/`deslocamento`. Calculada em Python depois do `LIMIT`,
+a media ordenaria apenas a pagina ja recortada — devolvendo a resposta errada **sem
+nenhum sinal de erro**. Gravada no banco, `ORDER BY` e paginacao acontecem no SQL como
+em qualquer outra coluna. Revelado pelo `/spec-review` de 2026-07-26 sobre as Specs
+7a-9c; decisao do usuario na mesma sessao.
+
+Atencao ao fechar: **re-sincronizar o banco** (opcao 4 do menu) antes de implementar a
+7a. O `bestiario_combate.db` esta fora do git e nao emite erro quando esta defasado —
+foi exatamente assim que a tabela `efeitos` ficou com 0 linhas em 2026-07-25, com o
+codigo certo o tempo todo.
+
+---
+**Status:** em revisao desde 2026-07-26

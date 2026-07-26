@@ -65,6 +65,7 @@ paths:
         - $ref: '#/components/parameters/VulneravelA'
         - $ref: '#/components/parameters/ImuneACondicao'
         - $ref: '#/components/parameters/Impoe'
+        - $ref: '#/components/parameters/Relacao'
         - $ref: '#/components/parameters/Combinar'
         - $ref: '#/components/parameters/Nome'
         - name: ordenar_por
@@ -72,7 +73,7 @@ paths:
           description: Coluna de ordenacao. Valor fora da lista cai na ordenacao padrao por nome, sem erro.
           schema:
             type: string
-            enum: [nome, desafio, pontos_vida, classe_armadura, dano_medio]
+            enum: [nome, tipo, tamanho, desafio, pontos_vida, classe_armadura, dano_medio]
             default: nome
         - $ref: '#/components/parameters/Sentido'
         - $ref: '#/components/parameters/Limite'
@@ -140,6 +141,7 @@ paths:
         - $ref: '#/components/parameters/VulneravelA'
         - $ref: '#/components/parameters/ImuneACondicao'
         - $ref: '#/components/parameters/Impoe'
+        - $ref: '#/components/parameters/Relacao'
         - $ref: '#/components/parameters/Combinar'
         - name: ordenar_por
           in: query
@@ -193,6 +195,7 @@ paths:
         - $ref: '#/components/parameters/VulneravelA'
         - $ref: '#/components/parameters/ImuneACondicao'
         - $ref: '#/components/parameters/Impoe'
+        - $ref: '#/components/parameters/Relacao'
         - $ref: '#/components/parameters/Combinar'
       responses:
         '200':
@@ -229,6 +232,7 @@ paths:
         - $ref: '#/components/parameters/VulneravelA'
         - $ref: '#/components/parameters/ImuneACondicao'
         - $ref: '#/components/parameters/Impoe'
+        - $ref: '#/components/parameters/Relacao'
         - $ref: '#/components/parameters/Combinar'
       responses:
         '200':
@@ -331,6 +335,16 @@ components:
       description: Condicao a qual o monstro e imune.
       schema: { type: string }
       example: charmed
+    Relacao:
+      name: relacao
+      in: query
+      description: >
+        Restringe a interacao com dano a uma relacao. Combinado com `por=tipo_dano`
+        em `/comparacoes`, produz a contagem por tipo de dano dentro de uma relacao.
+      schema:
+        type: string
+        enum: [imunidade, resistencia, vulnerabilidade]
+      example: imunidade
     Impoe:
       name: impoe
       in: query
@@ -594,6 +608,10 @@ components:
           type: [number, 'null']
           description: Nulo quando nenhum monstro do grupo tem ataque com dano.
           examples: [15.2]
+        media_bonus_ataque:
+          type: [number, 'null']
+          description: Nulo quando nenhum monstro do grupo tem ataque.
+          examples: [7.4]
 
     Resumo:
       type: object
@@ -604,6 +622,7 @@ components:
         media_classe_armadura: { type: [number, 'null'], examples: [16.8] }
         media_desafio: { type: [number, 'null'], examples: [9.7] }
         media_dano: { type: [number, 'null'], examples: [15.1] }
+        media_bonus_ataque: { type: [number, 'null'], examples: [7.1] }
 
     Vocabulario:
       type: object

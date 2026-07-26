@@ -3,7 +3,7 @@
 **Ordem:** 9b de 9
 **Depende de:** Specs 7a (núcleo) e 9a (moldura)
 **Score:** 4
-**Revisão:** pendente
+**Revisão:** aprovada
 
 ## O que faz
 Entrega a aba de análises: os filtros nomeados, a escolha única entre ver a lista ou comparar, a faixa de resumo sempre visível e a tabela de resultado.
@@ -32,14 +32,14 @@ Entrega a aba de análises: os filtros nomeados, a escolha única entre ver a li
 
 ### A faixa de resumo
 
-- Quando qualquer resultado é exibido, uma faixa acima dele mostra o conjunto filtrado condensado: quantos monstros, média de pontos de vida, de classe de armadura, de desafio e de dano.
+- Quando qualquer resultado é exibido, uma faixa acima dele mostra o conjunto filtrado condensado: quantos monstros, média de pontos de vida, de classe de armadura, de desafio, de dano e de bônus de ataque.
 - Quando o usuário muda um filtro e gera de novo, a faixa recalcula.
 - A faixa **não é opcional** e não tem botão que a ligue. É o que responde "qual a média de dano desses monstros" sem o usuário precisar pedir.
 
 ### A tabela
 
 - Quando a saída é "Ver os monstros", cada linha traz nome, tipo, tamanho, desafio, pontos de vida, classe de armadura e **dano médio** — esta última sempre presente, sem seletor.
-- Quando a saída é "Comparar por", cada linha traz o valor da dimensão, quantos monstros, e as médias de pontos de vida, classe de armadura, desafio e dano.
+- Quando a saída é "Comparar por", cada linha traz o valor da dimensão, quantos monstros, e as médias de pontos de vida, classe de armadura, desafio, dano e bônus de ataque. São as seis métricas que o núcleo calcula e que o contrato publica — a tela mostra o conjunto pronto, sem seletor.
 - Quando a coluna é uma média, o cabeçalho diz **"Média de…"** por extenso. Sem isso, `202` na linha do dragão lê como o total de pontos de vida de um dragão, e não como a média dos 43.
 - Quando a dimensão é multivalorada (ambiente, tipo de dano, condição imposta), a tela avisa que a soma da coluna de contagem pode passar do total, porque um monstro conta em mais de um grupo. Sem o aviso, o usuário conclui que a conta está errada.
 - Quando nenhum monstro atende aos filtros, a tabela aparece vazia com a mensagem de que nada foi encontrado, e a faixa mostra zero. Não é erro.
@@ -51,18 +51,19 @@ Entrega a aba de análises: os filtros nomeados, a escolha única entre ver a li
 - Quando um valor de filtro chega inválido pela URL, a tela exibe o aviso de valor não reconhecido e mantém os demais filtros, em vez de mostrar erro de servidor.
 - Quando uma **chave** de filtro ou uma dimensão desconhecida chega pela URL (ex: `?por=cor`), a tela ignora o parâmetro e avisa, em vez de devolver erro de servidor. Só valor inválido não basta: chave inválida é igualmente alcançável por link editado à mão.
 - Quando o usuário clica num preset, o formulário é **preenchido** com aqueles filtros e aquela saída — não abre uma tela pronta e fechada. Ele vê como a análise foi montada e pode mexer.
-- Quando o resultado é uma lista de monstros, um botão manda esse mesmo recorte para a aba Pesquisar, **levando os filtros na URL**, não a lista de nomes. O `combinar` vai junto: sem ele, um recorte montado com "qualquer um dos filtros" chegaria na outra aba avaliado como "todos" e exibiria um conjunto diferente, sem erro nenhum.
+- A tela oferece apenas os presets cuja saída ela sabe exibir: `lista_monstros` e `comparacao`. O preset de **modo `lista_ataques`** ("Top ataques") **não aparece aqui** — `saida` só admite os dois valores, e um preset que preenchesse o formulário com uma saída irrepresentável deixaria a tela num estado que ela não sabe renderizar. Esse relatório continua existindo no terminal e em `/api/v1/ataques`.
+- Quando o resultado é uma lista de monstros, um botão manda esse mesmo recorte para a aba Pesquisar, **levando os filtros na URL**, não a lista de nomes. O `combinar` vai junto: sem ele, um recorte montado com "qualquer um dos filtros" chegaria na outra aba avaliado como "todos" e exibiria um conjunto diferente, sem erro nenhum. O `modo` de exibição também vai junto, pela mesma razão que ele viaja entre as abas da moldura (9a) — é a mesma classe de perda silenciosa.
 
 ## Critérios verificáveis
 
 - [ ] `uv run pytest -v` passa, incluindo os testes das Specs 1-9a.
 - [ ] Teste confirma que `GET /relatorios` sem parâmetro nenhum responde 200 e já traz a comparação por tipo preenchida.
 - [ ] Teste confirma que a faixa de resumo aparece no HTML em toda resposta de resultado.
-- [ ] Teste confirma que a faixa recalcula ao filtrar: com `imune_a=fire`, mostra a contagem de imunes a fogo **da fixture**, e sem filtro mostra o total dela. Os testes usam a fixture de `tests/web/conftest.py` criada na 9a — nunca o `bestiario_combate.db`, que está fora do git e não existe no CI.
+- [ ] Teste confirma que a faixa recalcula ao filtrar: com `imune_a=fire`, mostra a contagem de imunes a fogo **da fixture**, e sem filtro mostra o total dela. Os testes usam a fixture compartilhada de `tests/conftest.py` — nunca o `bestiario_combate.db`, que está fora do git e não existe no CI.
 - [ ] Teste confirma que `?combinar=qualquer` chega íntegro no link que leva para a aba Pesquisar.
 - [ ] Teste confirma que `?modo=completa` sobrevive a gerar um relatório.
 - [ ] Teste confirma que `?por=cor` responde 200 com aviso, e não 500.
-- [ ] Teste confirma que a tela oferece campo para **todos** os filtros do núcleo, incluindo alinhamento, vulnerável a e imune à condição.
+- [ ] Teste confirma que a tela oferece campo para os **onze filtros de recorte**: tipo, tamanho, alinhamento, ambiente, resiste a, imune a, vulnerável a, imune à condição, impõe, relação e a faixa de desafio. O filtro `nome` fica de fora de propósito — é por trecho e pertence à busca da aba Pesquisar; procurar por nome aqui competiria com ela.
 - [ ] Teste confirma que os cabeçalhos de coluna de agregado contêm o texto "Média de".
 - [ ] Teste confirma que a lista de monstros traz coluna de dano médio.
 - [ ] Teste confirma que `?por=ambiente` exibe o aviso de contagem que pode ultrapassar o total.
@@ -76,7 +77,8 @@ Entrega a aba de análises: os filtros nomeados, a escolha única entre ver a li
 
 ## Módulos afetados
 
-- `web/rotas.py` — ganha a rota `/relatorios`. Lê os parâmetros, chama o núcleo nos modos `agregado`, `lista_monstros` e `resumo`, e passa tudo ao template. Captura `ValorDeFiltroInvalido` e transforma em aviso na tela.
+- `web/rotas.py` — ganha a rota `/relatorios`. Lê os parâmetros, chama o núcleo nos modos `comparacao`, `lista_monstros` e `resumo`, e passa tudo ao template. Captura `ValorDeFiltroInvalido` **e `FiltroDesconhecido`** e transforma as duas em aviso na tela — chave ou dimensão fora da lista branca levanta a segunda, e sem capturá-la o critério de `?por=cor` responder 200 com aviso viraria um 500.
+- `tests/conftest.py` — amplia a fixture compartilhada (criada na Spec 8, ampliada na 9a) com o que esta aba exige: monstro imune a fogo, monstro com mais de um ambiente e monstro com dano médio calculável. Não cria fixture nova.
 - `web/templates/relatorios.html` — NOVO. Presets, cartão único de busca, a escolha única, faixa de resumo e tabela.
 - `web/static/estilo.css` — ajustado com o que a aba precisa e que ainda não veio do esboço na 9a.
 - `tests/web/test_rotas.py` — ampliado com os casos desta aba.

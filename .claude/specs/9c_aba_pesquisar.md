@@ -3,7 +3,7 @@
 **Ordem:** 9c de 9
 **Depende de:** Specs 7a (núcleo), 8 (API JSON), 9a (moldura) e 9b (aba Relatórios)
 **Score:** 5
-**Revisão:** pendente
+**Revisão:** aprovada
 
 ## O que faz
 Entrega a aba de busca e comparação: o campo que sugere nomes consumindo a API, as fichas acumuladas na tela em bloco de estatísticas, e o link JSON de cada uma.
@@ -48,6 +48,7 @@ Entrega a aba de busca e comparação: o campo que sugere nomes consumindo a API
 
 - A ficha completa exibe selos de **cinco** categorias, e cada uma leva a um filtro próprio da aba Relatórios: imunidade a dano (`imune_a`), resistência a dano (`resiste_a`), **vulnerabilidade a dano** (`vulneravel_a`), **imunidade a condição** (`imune_a_condicao`) e ambiente (`ambiente`). Os dois do meio foram acrescentados ao contrato em 2026-07-25 — sem eles, parte dos selos não teria destino, e "alguns selos clicam e outros não" é pior que nenhum clicar.
 - Os selos de **efeito** (CD, condição imposta, área) descrevem o que o monstro faz, não o que ele é. O selo de condição imposta leva ao filtro `impoe`; CD e área não são clicáveis, porque não existe filtro por CD nem por área — e nem faria sentido.
+- **Todo selo emite `saida=monstros` junto do filtro.** A aba Relatórios abre por padrão em comparação por tipo (9b); sem esse parâmetro, clicar em "imune a fire" cairia numa comparação por tipo dos imunes a fogo em vez da lista de monstros que o selo promete — o mesmo tipo de divergência silenciosa que o `combinar` tinha.
 - É o que transforma a ficha em navegação, e é o caminho inverso do botão que traz o resultado do relatório para cá.
 
 ### Link JSON
@@ -60,7 +61,7 @@ Entrega a aba de busca e comparação: o campo que sugere nomes consumindo a API
 
 - [ ] `uv run pytest -v` passa, incluindo os testes das Specs 1-9b.
 - [ ] Teste confirma que `GET /pesquisar?fixados=Adult Red Dragon,Vampire` responde 200 e renderiza duas fichas.
-- [ ] Teste confirma que `GET /pesquisar?tipo=dragon` renderiza os 43 dragões — o caminho vindo do relatório não depende de lista de nomes.
+- [ ] Teste confirma que `GET /pesquisar?tipo=dragon` renderiza **todos os dragões da fixture** — o caminho vindo do relatório não depende de lista de nomes. A contagem sai da fixture compartilhada de `tests/conftest.py`, nunca dos 43 do SRD real: o `bestiario_combate.db` está fora do git e não existe no CI.
 - [ ] Teste confirma que nomes e filtros na mesma URL se unem sem repetir monstro.
 - [ ] Teste confirma que nome inexistente em `fixados` é ignorado, os demais aparecem e a página avisa quantos faltaram.
 - [ ] Teste confirma que `?modo=completa` renderiza os blocos que a resumida omite, e que `?modo=resumida` não os traz.
@@ -73,7 +74,7 @@ Entrega a aba de busca e comparação: o campo que sugere nomes consumindo a API
 - [ ] Teste confirma que os selos de vulnerabilidade e de imunidade a condição levam a `/relatorios` com `vulneravel_a` e `imune_a_condicao`.
 - [ ] Teste confirma que `?combinar=qualquer` vindo do relatório é respeitado, e não silenciosamente trocado por `todos`.
 - [ ] Teste confirma que cada ficha traz link para `/api/v1/monstros/{nome}` com o nome daquele monstro.
-- [ ] Teste confirma que o selo de imunidade a fogo aponta para `/relatorios` com `imune_a=fire`.
+- [ ] Teste confirma que o selo de imunidade a fogo aponta para `/relatorios` com `imune_a=fire` **e `saida=monstros`**.
 - [ ] Teste confirma que `?modo=completa` com mais de 30 monstros exibe o aviso de volume.
 - [ ] Teste confirma que a busca funciona sem JavaScript: envio do formulário responde 200 com o monstro fixado.
 - [ ] Busca por `SELECT`, `execute` e `sqlite3` em `web/` não encontra ocorrência.
@@ -85,7 +86,7 @@ Entrega a aba de busca e comparação: o campo que sugere nomes consumindo a API
 - `web/templates/pesquisa.html` — NOVO. Campo de busca, área das fichas, estado vazio.
 - `web/templates/_ficha.html` — NOVO. O bloco de estatísticas, com resumida e completa no mesmo arquivo.
 - `web/templates/todos.html` — ampliado: passa a abrir a ficha da linha clicada no modo Completa, reutilizando o `_ficha.html`. **Esta spec tem permissão explícita para editá-lo**; a 9a o criou sem esse comportamento justamente porque o bloco de estatísticas nasce aqui.
-- `tests/web/conftest.py` — a fixture da 9a é ampliada, não substituída, com os casos que a ficha exige: ação com duas condições, ação com CD e sem condição, monstro sem ataque.
+- `tests/conftest.py` — a fixture compartilhada é ampliada, não substituída, com os casos que a ficha exige: ação com duas condições, ação com CD e sem condição, monstro sem ataque.
 - `web/static/busca.js` — NOVO. Só a busca incremental por `fetch` e o preenchimento das sugestões. Poucas linhas, sem framework nem compilação.
 - `web/static/estilo.css` — ajustado com o que a ficha precisa.
 - `tests/web/test_rotas.py` — ampliado com os casos desta aba.
