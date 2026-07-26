@@ -27,7 +27,12 @@ Faz os 7 relatórios do terminal chamarem a camada de consulta em vez de carrega
 - O núcleo arredonda toda média em duas casas. Onde o relatório atual usava uma casa, o número passa a sair com duas.
 - A orquestradora e a lista `TODOS_OS_RELATORIOS` não mudam — o ponto único de registro fica de pé.
 - Quando o banco está vazio, cada relatório continua exibindo tabela vazia sem quebrar.
-- Continuam executáveis isolados (`python bestiario/relatorios.py`) e pela opção "Ver relatórios" do menu.
+- Continuam executáveis isolados e pela opção "Ver relatórios" do menu. O comando
+  standalone passa a ser **`python -m bestiario.relatorios`**: agora que o módulo
+  importa `bestiario.consultas`, rodá-lo por caminho põe `bestiario/` no `sys.path`
+  em vez da raiz e o import do pacote não resolve. A forma antiga funcionava por
+  acidente — o arquivo não importava nada do próprio pacote. Decisão do usuário em
+  2026-07-26: usar a forma idiomática em vez de manipular `sys.path`.
 
 ### Regra que vale para todos: seleção de colunas
 
@@ -76,12 +81,14 @@ Os outros quatro continuam servindo de rede de segurança da refatoração.
 - [ ] Teste confirma que "condições impostas" agrupa por condição a partir de `efeitos` e **não** traz coluna de nomes.
 - [ ] Teste confirma que, com banco vazio, cada relatório devolve DataFrame vazio sem exceção.
 - [ ] Teste confirma que os cabeçalhos impressos usam `pontos_vida` e `classe_armadura`, e não `hp` e `ac`.
-- [ ] `python bestiario/relatorios.py` roda de ponta a ponta contra o banco real sem erro.
+- [ ] `python -m bestiario.relatorios` roda de ponta a ponta contra o banco real sem erro.
 
 ## Módulos afetados
 
 - `bestiario/relatorios.py` — reescrito por dentro. As 7 funções perdem a query e passam a montar parâmetros, chamar o núcleo, renomear colunas e exibir. Continua importando `sqlite3` (a orquestradora abre a conexão), pandas e tabulate.
-- `tests/test_relatorios.py` — ajustado. Valores esperados fixos e explícitos para os dois preservados; casos novos para os cinco alterados; os dois testes listados acima substituídos.
+- `tests/test_relatorios.py` — ajustado. Valores esperados fixos e explícitos para os dois preservados; casos novos para os cinco alterados; os testes listados acima substituídos. Ganha um segundo dragão, com **dois** ataques, para provar que a média de bônus é por monstro e não por linha de ataque — sem ele o teste passaria dos dois jeitos.
+- `bestiario/__init__.py` — **deixa de re-exportar `gerar_todos_relatorios`**. Com o módulo executável por `python -m bestiario.relatorios`, importá-lo no `__init__` faz o runpy carregá-lo duas vezes sob dois nomes e emitir `RuntimeWarning` a cada execução. `main.py` já importava de `bestiario.relatorios` direto, então nada interno quebra.
+- `bestiario/consultas.py` — correção mínima descoberta ao implementar: `relacao` passa a ser validado contra tupla fixa em vez do vocabulário lido do banco. Os três valores são estruturais (schema e enum do contrato), não dado; validá-los contra o banco fazia `relacao=imunidade` ser rejeitado num banco vazio, quebrando o relatório de interação com dano. É o caso que o "Não mexer" desta spec prevê — núcleo incompleto, não licença para SQL aqui.
 - `.claude/specs/6_relatorios_e_consulta_local.md` — ganha nota de supersessão registrando que "condições impostas" perdeu a coluna de nomes e que "comparação entre tipos" mudou de ordenação. Sem a nota, uma spec concluída fica prometendo um formato que não existe mais — o mesmo tratamento que a 7c dá às funções que remove.
 
 ## Não mexer
@@ -107,3 +114,6 @@ Os outros quatro continuam servindo de rede de segurança da refatoração.
 - **O que está incompleto** → remover o item "SQL espalhado": resolve-se aqui.
 - **O que já funciona** → registrar que os relatórios do terminal passam pela camada de consulta única, e que três deles mudaram de formato.
 - **Bloco em aberto — Specs 7 a 10** → marcar 7b como concluída.
+
+---
+**Status:** concluida em 2026-07-26

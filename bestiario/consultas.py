@@ -127,6 +127,15 @@ ORDENACOES = {
 
 MODOS = ("lista_monstros", "lista_ataques", "comparacao", "resumo")
 
+# Filtro cujo domínio é **fechado e estrutural** — fixado pelo schema e pelo enum do
+# contrato, não pelo conteúdo do banco. Validado contra esta tupla, nunca contra o
+# vocabulário lido: num banco vazio o vocabulário é vazio, e `relacao=imunidade`
+# continua sendo um valor legítimo. Corrigido ao implementar a 7b, que precisava
+# do filtro para o relatório de imunidade/resistência rodar contra banco vazio.
+_VALORES_FIXOS = {
+    "relacao": ("imunidade", "resistencia", "vulnerabilidade"),
+}
+
 # Filtro → (tabela, coluna, cláusula extra) para leitura do vocabulário.
 _VOCABULARIO = {
     "tipo": ("monstros", "tipo", ""),
@@ -443,7 +452,13 @@ def _validar_valores(conexao, filtros):
         return
     vocabulario_por_filtro = None
     for chave, valor in filtros.items():
-        if chave not in _VOCABULARIO or valor is None or valor == "":
+        if valor is None or valor == "":
+            continue
+        if chave in _VALORES_FIXOS:
+            if valor not in _VALORES_FIXOS[chave]:
+                raise ValorDeFiltroInvalido(chave, valor)
+            continue
+        if chave not in _VOCABULARIO:
             continue
         if vocabulario_por_filtro is None:
             vocabulario_por_filtro = vocabulario(conexao)

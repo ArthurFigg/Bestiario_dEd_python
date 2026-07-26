@@ -32,7 +32,12 @@ from bestiario.excecoes import (
     ValorDeFiltroInvalido,
 )
 from bestiario.extracao import extrair_ataque
-from bestiario.relatorios import gerar_todos_relatorios
+
+# `relatorios` **não** é re-exportado de propósito. Ele é executável por
+# `python -m bestiario.relatorios`, e importá-lo aqui faria o `-m` carregar o
+# módulo duas vezes, sob dois nomes — o `RuntimeWarning` do runpy avisando de
+# "unpredictable behaviour". Quem precisa importa de `bestiario.relatorios`,
+# como `main.py` já faz.
 
 __all__ = [
     "criar_base_de_dados",
@@ -45,7 +50,6 @@ __all__ = [
     "filtrar_monstros",
     "sincronizar_base_completa",
     "extrair_ataque",
-    "gerar_todos_relatorios",
     "media_de_dado",
     "modificador",
     "saves_proficientes",

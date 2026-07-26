@@ -81,7 +81,7 @@ para que os filtros locais e os relatórios tenham dados.
 Os relatórios também podem ser gerados de forma independente, sem abrir o menu:
 
 ```bash
-uv run python bestiario/relatorios.py
+uv run python -m bestiario.relatorios
 ```
 
 ## Estrutura do projeto

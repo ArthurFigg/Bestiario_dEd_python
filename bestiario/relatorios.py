@@ -1,10 +1,14 @@
 """Relatórios sobre o banco local — um por função, orquestrados em sequência.
 
-Cada relatório é uma função de leitura (conexão → DataFrame) que também imprime a
-tabela via tabulate. Retornar o DataFrame mantém cada relatório testável isolado; a
-orquestradora `gerar_todos_relatorios` roda todos contra uma conexão. Novos
-relatórios entram como funções novas, sem tocar as existentes — daí a lista
-`TODOS_OS_RELATORIOS` como único ponto de registro.
+Cada relatório monta parâmetros, chama `consultas.py` e exibe: **nenhuma query
+mora aqui**. Antes da Spec 7b cada função carregava a própria consulta, e o mesmo
+SQL vivendo em dois lugares diverge na primeira correção que só chega a um — os
+números do terminal passariam a discordar dos do site sem ninguém perceber.
+
+Retornar o DataFrame mantém cada relatório testável isolado; a orquestradora
+`gerar_todos_relatorios` roda todos contra uma conexão. Novos relatórios entram
+como funções novas, sem tocar as existentes — daí a lista `TODOS_OS_RELATORIOS`
+como único ponto de registro.
 
 Os valores exibidos são as chaves canônicas em inglês do banco (`fire`, `dragon`,
 `poisoned`) — tradução para PT-BR é camada de apresentação futura (Spec 10).
@@ -15,135 +19,146 @@ import sqlite3
 import pandas as pd
 from tabulate import tabulate
 
+from bestiario.consultas import executar_consulta
+
+# Relação → título do bloco no relatório de interação com dano.
+_RELACOES = {
+    "imunidade": "IMUNIDADE A DANO",
+    "resistencia": "RESISTÊNCIA A DANO",
+    "vulnerabilidade": "VULNERABILIDADE A DANO",
+}
+
 
 def _exibir(titulo, df):
     print(f"\n{titulo}")
     print(tabulate(df, headers="keys", tablefmt="psql", showindex=False))
 
 
+def _tabela(linhas, colunas, renomear=None):
+    """Seleciona as colunas que este relatório imprime e renomeia para exibição.
+
+    O núcleo devolve sempre o conjunto pronto — a forma enxuta inteira, ou as seis
+    métricas. Nenhum relatório imprime tudo isso, então selecionar é parte da
+    apresentação, não do motor. Banco vazio ainda produz a tabela com cabeçalho.
+    """
+    df = pd.DataFrame(linhas)
+    df = pd.DataFrame(columns=colunas) if df.empty else df[colunas]
+    return df.rename(columns=renomear) if renomear else df
+
+
 def relatorio_mais_resistentes(conexao):
-    """Os 5 monstros com mais pontos de vida (tabela `monstros`, inalterada)."""
-    df = pd.read_sql_query(
-        """
-        SELECT nome, tipo, pontos_vida AS hp, classe_armadura AS ac
-        FROM monstros
-        WHERE pontos_vida IS NOT NULL AND classe_armadura IS NOT NULL
-        ORDER BY pontos_vida DESC
-        LIMIT 5
-        """,
-        conexao,
+    """Os 5 monstros com mais pontos de vida."""
+    linhas = executar_consulta(
+        conexao, ordenar_por="pontos_vida", sentido="decrescente", limite=5
     )
+    df = _tabela(linhas, ["nome", "tipo", "pontos_vida", "classe_armadura"])
     _exibir("OS 5 MAIS RESISTENTES:", df)
     return df
 
 
 def relatorio_top_ataques(conexao):
-    """Top 5 ataques por acerto — usa `ataques.bonus_ataque` (schema das Specs 3-4),
-    não mais `acoes.bonus_ataque` (coluna eliminada)."""
-    df = pd.read_sql_query(
-        """
-        SELECT m.nome, a.nome_ataque AS ataque, a.bonus_ataque AS bonus,
-               a.dano_dado AS dano, a.dano_tipo AS tipo_dano
-        FROM monstros m
-        JOIN acoes ac ON m.nome = ac.monstro_nome
-        JOIN ataques a ON a.acao_id = ac.id
-        WHERE a.bonus_ataque IS NOT NULL
-        ORDER BY a.bonus_ataque DESC
-        LIMIT 5
-        """,
+    """Top 5 ataques por acerto."""
+    linhas = executar_consulta(
         conexao,
+        modo="lista_ataques",
+        ordenar_por="bonus_ataque",
+        sentido="decrescente",
+        limite=5,
+    )
+    df = _tabela(
+        linhas,
+        ["monstro", "nome_ataque", "bonus_ataque", "dano_dado", "dano_tipo"],
+        {
+            "monstro": "nome",
+            "nome_ataque": "ataque",
+            "bonus_ataque": "bonus",
+            "dano_dado": "dano",
+            "dano_tipo": "tipo_dano",
+        },
     )
     _exibir("TOP 5 ATAQUES MAIS PRECISOS:", df)
     return df
 
 
 def relatorio_letalidade_por_tipo(conexao):
-    """Bônus de ataque médio agrupado por tipo — agrega `ataques.bonus_ataque`."""
-    df = pd.read_sql_query(
-        """
-        SELECT m.tipo,
-               ROUND(AVG(a.bonus_ataque), 2) AS media_bonus,
-               COUNT(a.id) AS total_ataques
-        FROM monstros m
-        JOIN acoes ac ON m.nome = ac.monstro_nome
-        JOIN ataques a ON a.acao_id = ac.id
-        WHERE a.bonus_ataque IS NOT NULL
-        GROUP BY m.tipo
-        ORDER BY media_bonus DESC
-        """,
-        conexao,
+    """Bônus de ataque médio por tipo de monstro.
+
+    A média é **por monstro**, não por linha de ataque: antes da 7b um monstro com
+    seis ataques pesava seis vezes na média do tipo dele, inflando quem tem muitas
+    ações. A contagem também mudou de ataques para monstros, e a ordenação passou a
+    ser por contagem — o modo `comparacao` do núcleo ordena assim, como o contrato
+    promete.
+    """
+    linhas = executar_consulta(conexao, modo="comparacao", por="tipo")
+    df = _tabela(
+        linhas,
+        ["valor", "media_bonus_ataque", "monstros"],
+        {"valor": "tipo"},
     )
     _exibir("LETALIDADE MÉDIA POR TIPO:", df)
     return df
 
 
 def relatorio_por_ambiente(conexao):
-    """Quantos monstros habitam cada ambiente (JOIN `monstro_ambiente`)."""
-    df = pd.read_sql_query(
-        """
-        SELECT ambiente, COUNT(*) AS total
-        FROM monstro_ambiente
-        GROUP BY ambiente
-        ORDER BY total DESC
-        """,
-        conexao,
-    )
+    """Quantos monstros habitam cada ambiente."""
+    linhas = executar_consulta(conexao, modo="comparacao", por="ambiente")
+    df = _tabela(linhas, ["valor", "monstros"], {"valor": "ambiente"})
     _exibir("MONSTROS POR AMBIENTE:", df)
     return df
 
 
 def relatorio_comparacao_tipos(conexao):
-    """CR, HP e AC médios por tipo — comparação entre categorias de monstro."""
-    df = pd.read_sql_query(
-        """
-        SELECT tipo,
-               ROUND(AVG(nivel_desafio), 2) AS cr_medio,
-               ROUND(AVG(pontos_vida), 1) AS hp_medio,
-               ROUND(AVG(classe_armadura), 1) AS ac_medio,
-               COUNT(*) AS total
-        FROM monstros
-        GROUP BY tipo
-        ORDER BY cr_medio DESC
-        """,
-        conexao,
+    """Desafio, pontos de vida e classe de armadura médios por tipo.
+
+    Ordena por contagem de monstros, não mais por desafio médio: é a ordenação fixa
+    do modo `comparacao`.
+    """
+    linhas = executar_consulta(conexao, modo="comparacao", por="tipo")
+    df = _tabela(
+        linhas,
+        [
+            "valor",
+            "media_desafio",
+            "media_pontos_vida",
+            "media_classe_armadura",
+            "monstros",
+        ],
+        {"valor": "tipo"},
     )
     _exibir("COMPARAÇÃO ENTRE TIPOS (médias):", df)
     return df
 
 
 def relatorio_interacao_dano(conexao):
-    """Contagem de monstros por tipo de dano e relação (imunidade/resistência/
-    vulnerabilidade), via `monstro_interacao_dano`."""
-    df = pd.read_sql_query(
-        """
-        SELECT tipo_dano, relacao, COUNT(*) AS total
-        FROM monstro_interacao_dano
-        GROUP BY tipo_dano, relacao
-        ORDER BY total DESC
-        """,
-        conexao,
-    )
-    _exibir("IMUNIDADE / RESISTÊNCIA / VULNERABILIDADE A DANO:", df)
-    return df
+    """Contagem de monstros por tipo de dano, um bloco para cada relação.
+
+    Antes era uma tabela de duas dimensões (tipo de dano × relação). O núcleo não
+    agrupa por duas dimensões — nenhum outro consumidor precisaria disso —, então
+    são três comparações, cada uma restrita a uma relação. O DataFrame devolvido
+    junta as três com a coluna `relacao`, para quem chama continuar tendo uma
+    tabela só.
+    """
+    blocos = []
+    for relacao, titulo in _RELACOES.items():
+        linhas = executar_consulta(
+            conexao, {"relacao": relacao}, modo="comparacao", por="tipo_dano"
+        )
+        bloco = _tabela(linhas, ["valor", "monstros"], {"valor": "tipo_dano"})
+        _exibir(f"{titulo}:", bloco)
+        bloco.insert(1, "relacao", relacao)
+        blocos.append(bloco)
+    return pd.concat(blocos, ignore_index=True)
 
 
 def relatorio_condicoes_impostas(conexao):
-    """Condições mais impostas e quais monstros as causam (JOIN `efeitos`→`acoes`→
-    `monstros`, tabela `efeitos` da Spec 5)."""
-    df = pd.read_sql_query(
-        """
-        SELECT e.condicao,
-               COUNT(DISTINCT m.nome) AS monstros,
-               GROUP_CONCAT(DISTINCT m.nome) AS quais
-        FROM efeitos e
-        JOIN acoes ac ON e.acao_id = ac.id
-        JOIN monstros m ON ac.monstro_nome = m.nome
-        WHERE e.condicao IS NOT NULL
-        GROUP BY e.condicao
-        ORDER BY monstros DESC
-        """,
-        conexao,
-    )
+    """Condições mais impostas por alguma ação.
+
+    Perdeu a coluna com os nomes de quem impõe cada uma: concatenar nomes de grupo
+    é agrupamento que só este relatório usaria. Quem quiser os nomes filtra por
+    `impoe` e lista os monstros.
+    """
+    linhas = executar_consulta(conexao, modo="comparacao", por="condicao_imposta")
+    df = _tabela(linhas, ["valor", "monstros"], {"valor": "condicao"})
     _exibir("CONDIÇÕES MAIS IMPOSTAS:", df)
     return df
 

@@ -26,7 +26,7 @@ Bestiario_dEd_python/
 │   ├── calculos.py       # Derivações puras: modificador, saves, média de dado
 │   ├── consultas.py      # Montagem parametrizada de query + presets
 │   ├── excecoes.py       # Erros de domínio (dimensão/filtro inválido)
-│   ├── relatorios.py     # Relatórios do terminal — delegam a consultas.py (7)
+│   ├── relatorios.py     # Relatórios do terminal — delegam a consultas.py
 │   └── modelos.py        # Entidades do domínio (placeholder até a Spec 3)
 ├── api/                  # (8) Superfície JSON — FastAPI, sem SQL próprio
 ├── web/                  # (9) Superfície HTML — FastAPI + Jinja2
@@ -143,6 +143,14 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
   Devolve dicionários, nunca DataFrame. `calculos.py` traz as derivações puras
   (modificador, saves proficientes, média de dado) e `excecoes.py` os erros de
   domínio que a API traduz para RFC 7807.
+- [x] **Relatórios delegando ao núcleo** (Spec 7b): nenhuma query mora em
+  `relatorios.py`. Dois relatórios mantiveram a saída; **cinco mudaram**, de forma
+  declarada: "letalidade por tipo" passa a tirar média **por monstro** (antes um
+  monstro com seis ataques pesava seis vezes e inflava tipos com muitas ações),
+  "comparação entre tipos" e "letalidade" ordenam por contagem em vez de média,
+  "imunidade/resistência a dano" virou três blocos (um por relação) em vez de tabela
+  de duas dimensões, e "condições impostas" perdeu a coluna com os nomes de quem
+  impõe. Standalone agora é `python -m bestiario.relatorios`.
 - [x] Relatórios reescritos para o schema v2 (`ataques.bonus_ataque` no lugar de
   `acoes.bonus_ataque`) + 4 relatórios ricos (por ambiente, comparação entre tipos,
   imunidade/resistência a dano, condições impostas); `relatorios.py` com uma função
@@ -168,10 +176,9 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
 - [ ] **Sem front-end e sem API HTTP**: a interface é 100% terminal. Especificado
   no plano das Specs 7-9 (camada de consulta → API JSON → site), com a tradução
   PT-BR empurrada para a Spec 10. Desenho aprovado em esboço estático — ver Sessão 6.
-- [ ] **SQL espalhado** — **meio resolvido**: `consultas.py` existe desde a Spec 7a
-  (2026-07-26) e é o único lugar do projeto onde SQL de leitura é escrito, mas os 7
-  relatórios ainda carregam a própria query. Quem os faz delegar é a **Spec 7b**;
-  até lá o SQL vive em dois lugares.
+- [x] ~~**SQL espalhado**~~ — **resolvido na Spec 7b**: `consultas.py` é o único lugar
+  do projeto onde SQL de leitura é escrito, e os 7 relatórios delegam a ele. Falta só
+  o menu (`main.py`), que a **Spec 7c** migra.
 - [x] ~~**Sem testes automatizados**~~ — **resolvido**: suíte pytest com 156 testes
   espelhando o pacote (cliente API, banco/ingestão, extração, derivações puras,
   camada de consulta, relatórios e orquestração dos filtros); mocks só na fronteira
@@ -215,9 +222,9 @@ regra de camadas do CLAUDE.md global: dados → lógica → apresentação.
 
 7. **Camada de consulta** — dividida em três specs. **7a (`consultas.py`,
    `calculos.py`, `excecoes.py`) concluída em 2026-07-26**: Python puro, testável
-   sem servidor, com lista branca de filtros/dimensões/ordenações. Falta a **7b**
-   (os 7 relatórios delegando) e a **7c** (menu migrado) — é a 7b que fecha o item
-   "SQL espalhado".
+   sem servidor, com lista branca de filtros/dimensões/ordenações. **7b (relatórios
+   delegando) concluída em 2026-07-26** — fechou o item "SQL espalhado". Falta a
+   **7c** (menu migrado).
 8. **API JSON** (`api/`) — recursos em `/api/v1/`, erros em RFC 7807, `openapi.yaml`
    commitado e um teste de contrato barrando divergência com o que o FastAPI gera.
 9. **Site** (`web/`) — três abas (Relatórios, Pesquisar, Todos os monstros),
@@ -334,7 +341,7 @@ uv sync
 python main.py
 
 # Só os relatórios (standalone)
-python bestiario/relatorios.py
+python -m bestiario.relatorios
 
 # Servidor — site e API juntos (a partir das Specs 8-9)
 uv run uvicorn web.app:app --reload
