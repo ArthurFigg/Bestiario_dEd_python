@@ -10,6 +10,7 @@ inglês da v2 (`fire`, `dragon`) — tradução é camada de apresentação futu
 
 import sqlite3
 
+from bestiario.calculos import media_de_dado
 from bestiario.extracao import extrair_ataque, extrair_efeitos
 
 # action_type da v2 → valor da coluna `categoria` (traits usam 'special_ability').
@@ -138,9 +139,11 @@ def criar_base_de_dados(caminho="bestiario_combate.db"):
             dano_dado TEXT,
             dano_bonus INTEGER,
             dano_tipo TEXT,
+            dano_medio REAL,
             dano_extra_dado TEXT,
             dano_extra_bonus INTEGER,
             dano_extra_tipo TEXT,
+            dano_extra_medio REAL,
             FOREIGN KEY (acao_id) REFERENCES acoes (id)
         )
     """)
@@ -346,10 +349,10 @@ def _inserir_ataque(cursor, acao_id, desc, attack):
         """
         INSERT INTO ataques (
             acao_id, nome_ataque, tipo_ataque, bonus_ataque, alcance, alcance_longo,
-            dano_dado, dano_bonus, dano_tipo,
-            dano_extra_dado, dano_extra_bonus, dano_extra_tipo
+            dano_dado, dano_bonus, dano_tipo, dano_medio,
+            dano_extra_dado, dano_extra_bonus, dano_extra_tipo, dano_extra_medio
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             acao_id,
@@ -361,9 +364,14 @@ def _inserir_ataque(cursor, acao_id, desc, attack):
             d["dano_dado"],
             d["dano_bonus"],
             d["dano_tipo"],
+            # Média gravada, não calculada na leitura: é coluna de ordenação da API
+            # e convive com paginação — calculada depois do LIMIT, ordenaria só a
+            # página já recortada.
+            media_de_dado(d["dano_dado"], d["dano_bonus"]),
             d["dano_extra_dado"],
             d["dano_extra_bonus"],
             d["dano_extra_tipo"],
+            media_de_dado(d["dano_extra_dado"], d["dano_extra_bonus"]),
         ),
     )
 

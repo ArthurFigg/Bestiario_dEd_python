@@ -287,6 +287,26 @@ def test_action_bite_popula_ataques_com_dano_do_desc(conexao):
     assert linha == ("Bite attack", 14, 10, "2d10", 8, "piercing", "2d6", "fire")
 
 
+def test_ataque_grava_dano_medio_calculado(conexao):
+    registrar_monstro(conexao, _adult_red_dragon())
+    medio = conexao.execute(
+        "SELECT a.dano_medio FROM ataques a JOIN acoes ac ON a.acao_id = ac.id "
+        "WHERE ac.monstro_nome = ? AND ac.nome_acao = ?",
+        ("Adult Red Dragon", "Bite"),
+    ).fetchone()[0]
+    assert medio == 19.0  # 2d10+8
+
+
+def test_ataque_grava_dano_extra_medio_calculado(conexao):
+    registrar_monstro(conexao, _adult_red_dragon())
+    medio = conexao.execute(
+        "SELECT a.dano_extra_medio FROM ataques a JOIN acoes ac ON a.acao_id = ac.id "
+        "WHERE ac.monstro_nome = ? AND ac.nome_acao = ?",
+        ("Adult Red Dragon", "Bite"),
+    ).fetchone()[0]
+    assert medio == 7.0  # 2d6, sem bônus
+
+
 def test_trait_vira_special_ability_sem_ataque(conexao):
     registrar_monstro(conexao, _adult_red_dragon())
     acao = conexao.execute(

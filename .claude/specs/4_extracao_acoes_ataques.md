@@ -60,7 +60,7 @@ Percorre `actions` e `traits` do dict estruturado da v2 (SRD 2014) e popula as t
 - `bestiario/relatorios.py` — queries de relatório são a Spec 6.
 - `bestiario/modelos.py` — segue placeholder; a ingestão lê o dict v2 diretamente.
 - `main.py` — o menu não muda; a função de sync continua chamando a ingestão.
-- **Schema** das tabelas `acoes` e `ataques` — fixado na Spec 3. Esta spec só popula; não altera colunas nem cria tabelas.
+- **Schema** das tabelas `acoes` e `ataques` — fixado na Spec 3. Esta spec só popula; não altera colunas nem cria tabelas. ~~*Superado pela Revisão 1 (2026-07-26)*~~: a revisão acrescenta `dano_medio` e `dano_extra_medio` a `ataques`. A regra segue valendo para `acoes` e para todo o resto do schema.
 - **Tabela `efeitos`** e a extração de save DC / condição / área — responsabilidade da Spec 5. Ações com save (Fire Breath, Wing Attack) têm sua linha em `acoes` criada aqui, mas seus efeitos não são extraídos nesta spec.
 - **Tabelas de nível monstro** (`monstros`, `monstro_interacao_dano`, `monstro_imunidade_condicao`, `monstro_ambiente`, `monstro_pericia`) — populadas na Spec 3, não tocadas aqui.
 - Tradução dos valores para português — camada de apresentação futura; o banco guarda chaves canônicas em inglês.
@@ -86,12 +86,25 @@ Seção adicionada retroativamente (spec anterior à regra "spec declara e /spec
 **Revisao 1** — 2026-07-26
 
 O que muda: a tabela `ataques` ganha duas colunas, `dano_medio` e `dano_extra_medio`
-(REAL, anulaveis), e a ingestao passa a grava-las usando `media_de_dado` — a mesma
-formula `n × (faces + 1) / 2 + bonus` que a Spec 7a define em `calculos.py`. Ataque
-sem dado valido grava NULL: ausencia de dano nao e erro. O DDL fica em `banco.py`,
-criado pela Spec 3; esta revisao o estende e acrescenta nota de supersessao na Spec 3,
-por decisao do usuario em 2026-07-26 — a coluna e derivada da extracao, entao quem a
-calcula e quem a possui. Escopo: `banco.py`, `tests/test_banco.py` e o re-sync do
+(REAL, anulaveis), e a ingestao passa a grava-las usando `media_de_dado` — a formula
+`n × (faces + 1) / 2 + bonus`. **`bestiario/calculos.py` nasce aqui** com essa funcao,
+por decisao do usuario em 2026-07-26: a Spec 7a a listava como modulo seu, mas a
+ingestao precisa da formula antes, e duplica-la faria a mesma conta existir na
+ingestao e na camada de consulta, livres para divergir. A 7a passa a acrescentar
+`modificador` e `saves_proficientes` a um modulo que ja existe.
+
+Ataque sem dado valido **mas com bonus** grava o proprio bonus: dano fixo
+(`1 piercing damage`, 15 ataques do SRD) e uma constante, e constante e a sua propria
+media. So os 4 ataques sem dado nem bonus gravam NULL. A redacao original da 7a dizia
+`None` para todo dado fora do padrao `NdM` e perderia os 15 — corrigido na 7a ao
+implementar.
+
+O DDL fica em `banco.py`, criado pela Spec 3; esta revisao o estende e acrescenta nota
+de supersessao na Spec 3 — a coluna e derivada da extracao, entao ficou com quem a
+calcula.
+
+Escopo: `bestiario/calculos.py` (novo), `tests/test_calculos.py` (novo), `banco.py`,
+`tests/test_banco.py`, nota na Spec 3, ajuste da 7a e o re-sync do
 `bestiario_combate.db`.
 
 Motivo: a Spec 7a precisa de `dano_medio` como coluna de ordenacao. O `openapi.yaml`
@@ -108,4 +121,4 @@ foi exatamente assim que a tabela `efeitos` ficou com 0 linhas em 2026-07-25, co
 codigo certo o tempo todo.
 
 ---
-**Status:** em revisao desde 2026-07-26
+**Status:** concluida em 2026-07-26 (Revisao 1)

@@ -107,4 +107,14 @@ Seção adicionada retroativamente (spec anterior à regra "spec declara e /spec
 - Contexto para decisões futuras → "banco já sincronizado (2319 monstros, 14970 ações)" → ~325 do SRD 2014, com `acoes`/`ataques`/`efeitos` vazias até as Specs 4-5.
 
 ---
+**Supersessao parcial** — 2026-07-26, pela Revisao 1 da Spec 4
+
+O DDL de `ataques` descrito aqui esta **desatualizado**: a tabela ganhou duas
+colunas, `dano_medio` e `dano_extra_medio` (REAL, anulaveis), acrescentadas pela
+Revisao 1 da Spec 4. Quem cria as colunas continua sendo `banco.py`, mas quem as
+especifica passou a ser a Spec 4 — a media e derivada da extracao, entao ficou com
+quem a calcula, por decisao do usuario em 2026-07-26. O bloco "Schema completo"
+desta spec segue valido para as outras sete tabelas.
+
+---
 **Status:** concluida em 2026-07-18

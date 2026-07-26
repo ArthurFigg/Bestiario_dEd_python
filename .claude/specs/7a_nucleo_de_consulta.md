@@ -21,7 +21,9 @@ Cria a camada que monta e executa consultas sobre o SQLite a partir de filtros n
 - Quando recebe um valor de atributo, `modificador` devolve `(valor - 10) // 2` — 27 vira 8, 10 vira 0, 7 vira -2.
 - Quando recebe a linha de um monstro, `saves_proficientes` devolve os atributos em que o teste de resistência **difere** do modificador do atributo. O schema guarda os seis testes já derivados e nunca nulos, mas o bloco de estatísticas só lista os proficientes; a diferença é o que denuncia a proficiência. No Adult Red Dragon o resultado é exatamente `destreza`, `constituicao`, `sabedoria` e `carisma` — que bate com o SRD.
 - Quando recebe um dado e um bônus, `media_de_dado` devolve a média: `n × (faces + 1) / 2 + bonus`. `("2d10", 8)` dá 19,0.
-- Quando o dado não casa o padrão `NdM` (nulo, vazio ou texto livre), `media_de_dado` devolve `None` — ausência de dano não é erro.
+- Quando não há dado válido **mas há bônus**, `media_de_dado` devolve o próprio bônus: dano fixo (`1 piercing damage`, 15 ataques do SRD) é uma constante, e uma constante é a sua própria média. Corrigido na Revisão 1 da Spec 4, ao implementar — a redação anterior devolvia `None` aqui e perderia esses 15.
+- Quando não há dado válido **nem bônus**, devolve `None` — ausência de dano não é erro. São 4 ataques no SRD.
+- `tests/test_calculos.py` já cobre `media_de_dado`; esta spec acrescenta os casos das outras duas funções.
 
 ### Vocabulário das chaves devolvidas
 
@@ -144,7 +146,7 @@ Cria a camada que monta e executa consultas sobre o SQLite a partir de filtros n
 
 ## Módulos afetados
 
-- `bestiario/calculos.py` — NOVO. `modificador`, `saves_proficientes`, `media_de_dado`. Funções puras, sem I/O, sem pandas nem sqlite.
+- `bestiario/calculos.py` — **já existe** com `media_de_dado`, criado na Revisão 1 da Spec 4 (a ingestão precisava da fórmula para gravar `dano_medio`). Esta spec acrescenta `modificador` e `saves_proficientes`. Funções puras, sem I/O, sem pandas nem sqlite.
 - `bestiario/consultas.py` — NOVO. `montar_consulta` (pura), `executar_consulta`, `contar`, `buscar_monstro`, `resolver_nomes`, `vocabulario`, as listas brancas `FILTROS`/`DIMENSOES`/`METRICAS`/`ORDENACOES` e o `PRESETS`.
 - `bestiario/excecoes.py` — NOVO. Exceção base mais `FiltroDesconhecido` e `ValorDeFiltroInvalido`.
 - `bestiario/__init__.py` — acrescenta as re-exportações da API pública nova. Só re-exportação. **`cliente_api.buscar_monstro` é renomeada para `buscar_monstro_na_api`** aqui e em `cliente_api.py`, `main.py` e `tests/test_cliente_api.py`: sem isso as duas funções de mesmo nome se re-exportam no mesmo `__init__.py` e a segunda sobrescreve a primeira **sem erro de import**. Depois da 7a, `buscar_monstro` sem qualificador significa a consulta local, que é o caminho principal; o nome novo diz de onde o dado vem. Decisão do usuário em 2026-07-26.

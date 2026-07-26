@@ -23,7 +23,7 @@ Bestiario_dEd_python/
 │   ├── cliente_api.py    # Comunicação HTTP com a API Open5e
 │   ├── banco.py          # Camada de dados: criação do SQLite e inserção
 │   ├── extracao.py       # Extração de bônus/dano das ações (regex)
-│   ├── calculos.py       # (7) Derivações puras: modificador, saves, média de dado
+│   ├── calculos.py       # Derivações puras: média de dado; (7) modificador e saves
 │   ├── consultas.py      # (7) Montagem parametrizada de query + presets
 │   ├── excecoes.py       # (7) Erros de domínio (dimensão/filtro inválido)
 │   ├── relatorios.py     # Relatórios do terminal — delegam a consultas.py (7)
@@ -87,10 +87,16 @@ Enriquecida com:
   `categoria` = `action`|`legendary_action`|`reaction` (de `action_type`) ou
   `special_ability` (de `traits`); `BONUS_ACTION` não existe no SRD 2014.
 - `ataques` (id PK, acao_id FK, `nome_ataque`, `tipo_ataque`, `bonus_ataque`,
-  `alcance`, `alcance_longo`, `dano_dado`, `dano_bonus`, `dano_tipo`,
-  `dano_extra_dado`, `dano_extra_bonus`, `dano_extra_tipo`) — extração híbrida:
-  `attacks[]` estruturado enumera os ataques (acerto/alcance), regex do `desc` é
-  o gabarito do dano; fallback para `damage_die_count`/`type` se a regex falha.
+  `alcance`, `alcance_longo`, `dano_dado`, `dano_bonus`, `dano_tipo`, `dano_medio`,
+  `dano_extra_dado`, `dano_extra_bonus`, `dano_extra_tipo`, `dano_extra_medio`) —
+  extração híbrida: `attacks[]` estruturado enumera os ataques (acerto/alcance),
+  regex do `desc` é o gabarito do dano; fallback para `damage_die_count`/`type` se
+  a regex falha.
+  **`dano_medio`/`dano_extra_medio` (REAL) são gravados, não calculados na leitura**
+  (Revisão 1 da Spec 4, 2026-07-26): são coluna de ordenação da API e convivem com
+  paginação — calculados em Python depois do `LIMIT`, ordenariam só a página já
+  recortada, sem erro nenhum. Dano fixo (`1 piercing damage`) grava o próprio bônus;
+  só ataque sem dado **nem** bônus grava NULL — 4 dos 542.
 - `efeitos` (id PK, acao_id FK, `cd_resistencia`, `atributo_resistencia`,
   `condicao`, `area_tipo`, `area_tamanho`) — criada vazia; populada na Spec 5.
 
