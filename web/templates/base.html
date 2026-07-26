@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Bestiário de D&amp;D 5e{% endblock %}</title>
+  <link rel="stylesheet" href="/static/estilo.css">
+</head>
+<body>
+
+<!-- voluta reutilizável, usada nos quatro cantos das molduras -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="voluta" viewBox="0 0 22 22">
+    <path d="M22 1.4 H8.5 C4.6 1.4 1.4 4.6 1.4 8.5 V22" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M6 6 C6 3.8 7.8 2 10 2" fill="none" stroke="currentColor" stroke-width="1.2"/>
+    <circle cx="5.4" cy="5.4" r="1.5" fill="currentColor"/>
+  </symbol>
+</svg>
+
+<div class="envelope">
+
+  <div class="cabecalho">
+    <h1>Bestiário de D&amp;D 5<sup>e</sup></h1>
+    <p>325 criaturas do SRD 2014</p>
+  </div>
+
+  <div class="barra">
+    <div class="abas" role="tablist">
+      {% for chave, rotulo, caminho in abas %}
+      <a class="aba" role="tab"
+         aria-selected="{{ 'true' if chave == aba_atual else 'false' }}"
+         href="{{ caminho }}?modo={{ modo }}">{{ rotulo }}</a>
+      {% endfor %}
+    </div>
+    <div class="alternador">
+      <span>Exibição</span>
+      <div class="grupo-botoes">
+        <a href="{{ url_resumida }}" aria-pressed="{{ 'true' if modo == 'resumida' else 'false' }}">Resumida</a>
+        <a href="{{ url_completa }}" aria-pressed="{{ 'true' if modo == 'completa' else 'false' }}">Completa</a>
+      </div>
+    </div>
+  </div>
+
+  {% block conteudo %}
+  <section class="painel">
+    <p class="nota">{{ mensagem }}</p>
+  </section>
+  {% endblock %}
+
+  <footer class="rodape">
+    <a href="/docs">API</a>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -13,13 +13,9 @@ produção não precisa analisar YAML para subir).
 from fastapi import FastAPI
 
 from api.erros import registrar_tratadores
-from api.rotas import roteador
+from api.rotas import METADADOS, roteador
 
-app = FastAPI(
-    title="Bestiário de D&D 5e — API",
-    version="1.0.0",
-    summary="Consulta e análise dos 325 monstros do SRD 2014.",
-)
+app = FastAPI(**METADADOS)
 
 app.include_router(roteador, prefix="/api/v1")
 registrar_tratadores(app)

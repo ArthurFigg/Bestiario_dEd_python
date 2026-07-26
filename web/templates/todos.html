@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block titulo %}Todos os monstros — Bestiário de D&amp;D 5e{% endblock %}
+
+{% block conteudo %}
+<section class="painel" id="p-todos">
+  {% if not monstros %}
+  <div class="aviso">
+    A base local não tem nenhum monstro. Rode a opção <code>4</code> do menu
+    (<code>python main.py</code>) para sincronizar com a API antes de folhear
+    o bestiário aqui.
+  </div>
+  {% else %}
+  <div class="moldura">
+    <span class="voluta se"><svg><use href="#voluta"/></svg></span>
+    <span class="voluta sd"><svg><use href="#voluta"/></svg></span>
+    <span class="voluta ie"><svg><use href="#voluta"/></svg></span>
+    <span class="voluta id"><svg><use href="#voluta"/></svg></span>
+    <div class="titulo-tabela">
+      <strong>Todos os Monstros</strong>
+      <span class="nota">{{ monstros|length }} · clique no cabeçalho para ordenar</span>
+    </div>
+    <div class="rolagem">
+      <table>
+        <thead>
+          <tr>
+            {% for coluna in colunas %}
+            <th{% if coluna.num %} class="num"{% endif %}>
+              <a href="{{ coluna.url }}">{{ coluna.rotulo }}</a>
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for monstro in monstros %}
+          <tr>
+            <td><a href="/pesquisar?fixados={{ monstro.nome | urlencode }}">{{ monstro.nome }}</a></td>
+            <td>{{ monstro.tipo }}</td>
+            <td>{{ monstro.tamanho }}</td>
+            <td class="num">{{ monstro.desafio }}</td>
+            <td class="num">{{ monstro.pontos_vida }}</td>
+            <td class="num">{{ monstro.classe_armadura }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

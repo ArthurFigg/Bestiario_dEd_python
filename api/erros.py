@@ -88,8 +88,24 @@ def _resposta(status, titulo, detail=None, instance=None):
     )
 
 
-def registrar_tratadores(app):
-    """Registra os cinco tratadores que convertem erro em RFC 7807."""
+PREFIXO_DA_API = "/api/"
+
+
+def registrar_tratadores(app, pagina_de_base_nao_sincronizada=None):
+    """Registra os cinco tratadores que convertem erro em RFC 7807.
+
+    `pagina_de_base_nao_sincronizada` é opcional e só o site passa: recebe o
+    `request` e devolve a página HTML explicativa. Sem ela — o caso de
+    `api.app:app` — todo erro sai em RFC 7807, que é o certo para quem consome
+    a API por programa.
+
+    A distinção existe porque **quem abre o site é pessoa, não programa**: JSON
+    cru na tela não diz a ninguém que falta rodar a opção 4 do menu. E como o
+    `.db` está fora do git, base ausente é o primeiro que qualquer clone novo
+    encontra, não um caso raro. O corte é por **superfície**: a página responde
+    200 (é o estado inicial esperado, e ela diz o que fazer), a API responde 503
+    (quem chama por programa precisa do sinal na faixa de status).
+    """
 
     @app.exception_handler(ValorDeFiltroInvalido)
     async def _tratar_valor_invalido(request, exc: ValorDeFiltroInvalido):
@@ -119,6 +135,13 @@ def registrar_tratadores(app):
 
     @app.exception_handler(BaseNaoSincronizada)
     async def _tratar_base_vazia(request, exc: BaseNaoSincronizada):
+        # Rota sob /api/ sempre recebe JSON, mesmo dentro do site: quem chama
+        # ali é programa, e programa precisa do 503 na faixa de status.
+        pede_html = pagina_de_base_nao_sincronizada is not None and not str(
+            request.url.path
+        ).startswith(PREFIXO_DA_API)
+        if pede_html:
+            return pagina_de_base_nao_sincronizada(request)
         detail = (
             "A base local não tem nenhum monstro. Rode a opção 4 do menu "
             "(sincronizar com a API) para popular o banco."

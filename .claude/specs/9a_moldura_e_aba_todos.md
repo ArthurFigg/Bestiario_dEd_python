@@ -117,3 +117,6 @@ Levanta o site: a moldura com as três abas e o botão de exibição, a identida
 - **Como rodar** → a entrada volta a ser `web.app:app`, como já documentado; remover a nota de que vale a partir das Specs 8-9.
 - **O que está incompleto** → o item "Sem front-end e sem API HTTP" perde mais uma parte; sobra até a 9c.
 - **Bloco em aberto — Specs 7 a 10** → marcar 9a como concluída.
+
+---
+**Status:** concluida em 2026-07-26

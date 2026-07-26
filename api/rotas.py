@@ -34,6 +34,16 @@ from bestiario.consultas import (
     vocabulario_por_dominio,
 )
 
+# `info` do OpenAPI, consumido por `api/app.py` e por `web/app.py`. Fica aqui,
+# num lugar só, porque o `/docs` que o rodapé do site manda abrir é o da
+# aplicação web: recopiado à mão, ele anunciaria versão antiga sem nenhum teste
+# reclamar — o teste de contrato lê a aplicação da API.
+METADADOS = {
+    "title": "Bestiário de D&D 5e — API",
+    "version": "1.0.0",
+    "summary": "Consulta e análise dos 325 monstros do SRD 2014.",
+}
+
 roteador = APIRouter()
 
 # Caminho padrão do banco de produção. Nos testes, `obter_conexao` é

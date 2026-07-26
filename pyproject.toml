@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.115,<1.0",
+    "jinja2>=3.1,<4.0",
     "pandas>=2.2,<3.0",
     "requests>=2.32,<3.0",
     "tabulate>=0.9,<1.0",
@@ -23,6 +24,10 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+# `tests/api/test_rotas.py` e `tests/web/test_rotas.py` têm o mesmo nome-base
+# em pacotes sem `__init__.py`; o modo padrão de import do pytest colide os
+# dois. `importlib` os identifica pelo caminho completo, sem exigir pacote.
+addopts = "--import-mode=importlib"
 
 [tool.ruff]
 line-length = 88

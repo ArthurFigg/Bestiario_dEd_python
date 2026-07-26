@@ -1,9 +1,10 @@
-"""Fixture compartilhada: banco de teste isolado e cliente HTTP contra a API.
+"""Fixture compartilhada: banco de teste isolado e cliente HTTP contra a API e o site.
 
-Nasce aqui (Spec 8) porque vem antes da Spec 9a, que amplia esta fixture em
+Nasce aqui (Spec 8) porque vem antes da Spec 9a, que **amplia** esta fixture em
 vez de criar a sua — API e site precisam do mesmo conjunto de monstros
 nomeados (`Adult Red Dragon`, `Goblin`, dois nomes contendo "drag"). Nunca
-toca `bestiario_combate.db`: está fora do git e não existe no CI.
+toca `bestiario_combate.db`: está fora do git e não existe no CI. As Specs 9b
+e 9c ampliam de novo, em vez de criar fixtures próprias.
 
 Cada requisição do `TestClient` abre a **própria** conexão para o arquivo de
 teste, em vez de compartilhar uma única conexão global: o FastAPI roda
@@ -206,8 +207,13 @@ def caminho_banco_vazio(tmp_path):
     return caminho
 
 
-def _cliente_apontado_para(caminho):
-    from api.app import app
+def _cliente_apontado_para(app, caminho):
+    """Substitui `obter_conexao` pelo arquivo de teste, para qualquer aplicação.
+
+    `api/app.py` e `web/app.py` importam a **mesma** função `obter_conexao` de
+    `api/rotas.py` — sobrescrever essa única chave em `dependency_overrides`
+    vale para as duas, seja a app da Spec 8 ou a que a Spec 9a inclui.
+    """
     from api.rotas import obter_conexao
 
     def _conexao_de_teste():
@@ -228,10 +234,30 @@ def _cliente_apontado_para(caminho):
 @pytest.fixture
 def cliente_api(caminho_banco_de_teste):
     """`TestClient` contra `api.app:app`, apontado para o banco de teste populado."""
-    yield from _cliente_apontado_para(caminho_banco_de_teste)
+    from api.app import app
+
+    yield from _cliente_apontado_para(app, caminho_banco_de_teste)
 
 
 @pytest.fixture
 def cliente_api_banco_vazio(caminho_banco_vazio):
     """`TestClient` contra `api.app:app`, apontado para um banco sem monstros."""
-    yield from _cliente_apontado_para(caminho_banco_vazio)
+    from api.app import app
+
+    yield from _cliente_apontado_para(app, caminho_banco_vazio)
+
+
+@pytest.fixture
+def cliente_web(caminho_banco_de_teste):
+    """`TestClient` contra `web.app:app`, apontado para o banco de teste populado."""
+    from web.app import app
+
+    yield from _cliente_apontado_para(app, caminho_banco_de_teste)
+
+
+@pytest.fixture
+def cliente_web_banco_vazio(caminho_banco_vazio):
+    """`TestClient` contra `web.app:app`, apontado para um banco sem monstros."""
+    from web.app import app
+
+    yield from _cliente_apontado_para(app, caminho_banco_vazio)
