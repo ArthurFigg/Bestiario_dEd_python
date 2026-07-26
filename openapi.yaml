@@ -1,0 +1,673 @@
+openapi: 3.1.0
+
+info:
+  title: Bestiário de D&D 5e — API
+  version: 1.0.0
+  summary: Consulta e análise dos 325 monstros do SRD 2014.
+  description: |
+    API de leitura sobre o bestiário do SRD 2014 (D&D 5e), derivado da Open5e e
+    guardado localmente em SQLite.
+
+    **Somente leitura.** Não há criação, edição ou remoção: o dado é espelho do
+    SRD e é regenerado por sincronização. Permitir escrita criaria uma segunda
+    verdade que o próximo re-sync apagaria em silêncio.
+
+    **Valores em inglês canônico.** Campos e parâmetros têm nome em português,
+    mas os valores são as chaves da fonte — `fire`, não `fogo`; `dragon`, não
+    `dragão`. Use `GET /vocabulario` para descobrir os valores aceitos em cada
+    filtro; não os adivinhe.
+
+    **Filtros uniformes.** `/monstros`, `/ataques`, `/comparacoes` e `/resumo`
+    aceitam exatamente o mesmo conjunto de filtros. Quem aprendeu a filtrar em um
+    sabe filtrar nos quatro.
+  license:
+    name: MIT
+    identifier: MIT
+
+servers:
+  - url: /api/v1
+    description: servidor da aplicação
+
+# Sem autenticação, declarado de propósito: o dado é o SRD, que é público, e a API
+# é só de leitura. A lista vazia diz "nenhum esquema exigido" — diferente de omitir
+# o campo, que deixaria a intenção ambígua para quem consome.
+security: []
+
+tags:
+  - name: monstros
+    description: A criatura e sua ficha completa.
+  - name: ataques
+    description: Ataques com grão próprio — uma linha é um golpe, não uma criatura.
+  - name: análise
+    description: Comparações agrupadas e resumo do conjunto filtrado.
+  - name: metadados
+    description: Vocabulário aceito pelos filtros.
+
+paths:
+
+  /monstros:
+    get:
+      tags: [monstros]
+      summary: Lista monstros
+      description: |
+        Devolve a forma enxuta de cada monstro. Para a ficha completa, com ações,
+        ataques e efeitos, use `GET /monstros/{nome}`.
+      operationId: listarMonstros
+      parameters:
+        - $ref: '#/components/parameters/Tipo'
+        - $ref: '#/components/parameters/Tamanho'
+        - $ref: '#/components/parameters/Alinhamento'
+        - $ref: '#/components/parameters/DesafioMinimo'
+        - $ref: '#/components/parameters/DesafioMaximo'
+        - $ref: '#/components/parameters/Ambiente'
+        - $ref: '#/components/parameters/ResisteA'
+        - $ref: '#/components/parameters/ImuneA'
+        - $ref: '#/components/parameters/VulneravelA'
+        - $ref: '#/components/parameters/ImuneACondicao'
+        - $ref: '#/components/parameters/Impoe'
+        - $ref: '#/components/parameters/Combinar'
+        - $ref: '#/components/parameters/Nome'
+        - name: ordenar_por
+          in: query
+          description: Coluna de ordenacao. Valor fora da lista cai na ordenacao padrao por nome, sem erro.
+          schema:
+            type: string
+            enum: [nome, desafio, pontos_vida, classe_armadura, dano_medio]
+            default: nome
+        - $ref: '#/components/parameters/Sentido'
+        - $ref: '#/components/parameters/Limite'
+        - $ref: '#/components/parameters/Deslocamento'
+      responses:
+        '200':
+          description: Página de monstros que atendem aos filtros.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListaDeMonstros' }
+        '422': { $ref: '#/components/responses/ErroValidacao' }
+        default:
+          description: Erro inesperado. Inclui 503 quando a base ainda nao foi sincronizada.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problema' }
+
+  /monstros/{nome}:
+    get:
+      tags: [monstros]
+      summary: Busca um monstro pelo nome
+      description: |
+        O nome é a chave primária e vai no caminho codificado para URL —
+        `/monstros/Adult%20Red%20Dragon`. A busca é exata, sem diferenciar
+        maiúsculas de minúsculas.
+      operationId: buscarMonstro
+      parameters:
+        - name: nome
+          in: path
+          required: true
+          description: Nome exato do monstro, codificado para URL.
+          schema: { type: string }
+          example: Adult Red Dragon
+      responses:
+        '200':
+          description: A ficha completa.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Monstro' }
+        '404': { $ref: '#/components/responses/NaoEncontrado' }
+        '422': { $ref: '#/components/responses/ErroValidacao' }
+        default:
+          description: Erro inesperado. Inclui 503 quando a base ainda nao foi sincronizada.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problema' }
+
+  /ataques:
+    get:
+      tags: [ataques]
+      summary: Lista ataques
+      description: |
+        Grão de ataque, não de monstro: um monstro com três ataques rende três
+        linhas. Aceita os mesmos filtros de `/monstros`, aplicados ao monstro dono.
+      operationId: listarAtaques
+      parameters:
+        - $ref: '#/components/parameters/Tipo'
+        - $ref: '#/components/parameters/Tamanho'
+        - $ref: '#/components/parameters/Alinhamento'
+        - $ref: '#/components/parameters/DesafioMinimo'
+        - $ref: '#/components/parameters/DesafioMaximo'
+        - $ref: '#/components/parameters/Ambiente'
+        - $ref: '#/components/parameters/ResisteA'
+        - $ref: '#/components/parameters/ImuneA'
+        - $ref: '#/components/parameters/VulneravelA'
+        - $ref: '#/components/parameters/ImuneACondicao'
+        - $ref: '#/components/parameters/Impoe'
+        - $ref: '#/components/parameters/Combinar'
+        - name: ordenar_por
+          in: query
+          description: Critério de ordenação decrescente.
+          schema:
+            type: string
+            enum: [bonus_ataque, dano_medio]
+            default: bonus_ataque
+        - $ref: '#/components/parameters/Limite'
+        - $ref: '#/components/parameters/Deslocamento'
+      responses:
+        '200':
+          description: Página de ataques.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListaDeAtaques' }
+        '422': { $ref: '#/components/responses/ErroValidacao' }
+        default:
+          description: Erro inesperado. Inclui 503 quando a base ainda nao foi sincronizada.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problema' }
+
+  /comparacoes:
+    get:
+      tags: [análise]
+      summary: Compara grupos de monstros
+      description: |
+        Agrupa os monstros filtrados pela dimensão de `por` e devolve as médias de
+        cada grupo. Como `ambiente`, `tipo_dano` e `condicao_imposta` são
+        multivalorados, um monstro pode contar em mais de uma linha — a soma da
+        coluna `monstros` pode passar do total filtrado.
+      operationId: compararMonstros
+      parameters:
+        - name: por
+          in: query
+          required: true
+          description: Dimensão de agrupamento.
+          schema:
+            type: string
+            enum: [tipo, tamanho, alinhamento, desafio, ambiente, tipo_dano, condicao_imposta]
+          example: tipo
+        - $ref: '#/components/parameters/Tipo'
+        - $ref: '#/components/parameters/Tamanho'
+        - $ref: '#/components/parameters/Alinhamento'
+        - $ref: '#/components/parameters/DesafioMinimo'
+        - $ref: '#/components/parameters/DesafioMaximo'
+        - $ref: '#/components/parameters/Ambiente'
+        - $ref: '#/components/parameters/ResisteA'
+        - $ref: '#/components/parameters/ImuneA'
+        - $ref: '#/components/parameters/VulneravelA'
+        - $ref: '#/components/parameters/ImuneACondicao'
+        - $ref: '#/components/parameters/Impoe'
+        - $ref: '#/components/parameters/Combinar'
+      responses:
+        '200':
+          description: Uma linha por valor da dimensão, da maior contagem para a menor.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LinhaDeComparacao' }
+        '422': { $ref: '#/components/responses/ErroValidacao' }
+        default:
+          description: Erro inesperado. Inclui 503 quando a base ainda nao foi sincronizada.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problema' }
+
+  /resumo:
+    get:
+      tags: [análise]
+      summary: Resume o conjunto filtrado
+      description: |
+        Condensa em uma linha os monstros que passaram nos filtros. Sem filtro
+        nenhum, resume os 325.
+      operationId: resumirMonstros
+      parameters:
+        - $ref: '#/components/parameters/Tipo'
+        - $ref: '#/components/parameters/Tamanho'
+        - $ref: '#/components/parameters/Alinhamento'
+        - $ref: '#/components/parameters/DesafioMinimo'
+        - $ref: '#/components/parameters/DesafioMaximo'
+        - $ref: '#/components/parameters/Ambiente'
+        - $ref: '#/components/parameters/ResisteA'
+        - $ref: '#/components/parameters/ImuneA'
+        - $ref: '#/components/parameters/VulneravelA'
+        - $ref: '#/components/parameters/ImuneACondicao'
+        - $ref: '#/components/parameters/Impoe'
+        - $ref: '#/components/parameters/Combinar'
+      responses:
+        '200':
+          description: O conjunto filtrado em uma linha.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resumo' }
+        '422': { $ref: '#/components/responses/ErroValidacao' }
+        default:
+          description: Erro inesperado. Inclui 503 quando a base ainda nao foi sincronizada.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problema' }
+
+  /vocabulario:
+    get:
+      tags: [metadados]
+      summary: Lista os valores aceitos pelos filtros
+      description: |
+        Os valores são chaves em inglês vindas da fonte. Este endpoint existe para
+        que o consumidor não precise adivinhar que `fire` vale e `fogo` não.
+      operationId: obterVocabulario
+      responses:
+        '200':
+          description: Os valores válidos de cada filtro.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Vocabulario' }
+        default:
+          description: |
+            Erro inesperado. Este endpoint não recebe parâmetro nenhum, então não
+            há erro de cliente possível — daí não haver um `4XX` documentado aqui.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problema' }
+
+components:
+
+  parameters:
+    Nome:
+      name: nome
+      in: query
+      description: Trecho do nome, sem diferenciar maiúsculas. Usado pela busca incremental.
+      schema: { type: string }
+      example: dragon
+    Tipo:
+      name: tipo
+      in: query
+      description: Tipo da criatura. Valores em `/vocabulario`.
+      schema: { type: string }
+      example: dragon
+    Tamanho:
+      name: tamanho
+      in: query
+      schema: { type: string }
+      example: huge
+    Alinhamento:
+      name: alinhamento
+      in: query
+      schema: { type: string }
+      example: chaotic evil
+    DesafioMinimo:
+      name: desafio_min
+      in: query
+      description: Desafio mínimo, inclusivo.
+      schema: { type: number, minimum: 0, maximum: 30 }
+      example: 10
+    DesafioMaximo:
+      name: desafio_max
+      in: query
+      description: Desafio máximo, inclusivo.
+      schema: { type: number, minimum: 0, maximum: 30 }
+      example: 20
+    Ambiente:
+      name: ambiente
+      in: query
+      schema: { type: string }
+      example: mountain
+    ResisteA:
+      name: resiste_a
+      in: query
+      description: Tipo de dano ao qual o monstro resiste.
+      schema: { type: string }
+      example: cold
+    ImuneA:
+      name: imune_a
+      in: query
+      description: Tipo de dano ao qual o monstro é imune.
+      schema: { type: string }
+      example: fire
+    VulneravelA:
+      name: vulneravel_a
+      in: query
+      description: Tipo de dano ao qual o monstro e vulneravel.
+      schema: { type: string }
+      example: fire
+    ImuneACondicao:
+      name: imune_a_condicao
+      in: query
+      description: Condicao a qual o monstro e imune.
+      schema: { type: string }
+      example: charmed
+    Impoe:
+      name: impoe
+      in: query
+      description: Condição que alguma ação do monstro impõe.
+      schema: { type: string }
+      example: prone
+    Combinar:
+      name: combinar
+      in: query
+      description: |
+        Como juntar os filtros informados. `todos` exige que o monstro atenda a
+        todos; `qualquer` basta atender a um.
+      schema:
+        type: string
+        enum: [todos, qualquer]
+        default: todos
+    Sentido:
+      name: sentido
+      in: query
+      description: Direcao da ordenacao.
+      schema:
+        type: string
+        enum: [crescente, decrescente]
+        default: crescente
+    Limite:
+      name: limite
+      in: query
+      description: Quantos itens por página.
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    Deslocamento:
+      name: deslocamento
+      in: query
+      description: Quantos itens pular antes de começar a página.
+      schema: { type: integer, minimum: 0, default: 0 }
+
+  schemas:
+
+    MonstroResumido:
+      type: object
+      description: A forma enxuta, usada nas listas.
+      required: [nome, tipo, tamanho, desafio, pontos_vida, classe_armadura]
+      properties:
+        nome: { type: string, examples: [Adult Red Dragon] }
+        tipo: { type: string, examples: [dragon] }
+        tamanho: { type: string, examples: [huge] }
+        desafio: { type: number, examples: [17] }
+        pontos_vida: { type: integer, examples: [256] }
+        classe_armadura: { type: integer, examples: [19] }
+        dano_medio:
+          type: [number, 'null']
+          description: Media dos ataques do monstro. Nulo quando nenhum ataque tem dado valido.
+          examples: [15.2]
+
+    Monstro:
+      type: object
+      description: A ficha completa, com as ações aninhadas.
+      required: [nome, tipo, tamanho, desafio, pontos_vida, classe_armadura, atributos, acoes]
+      properties:
+        nome: { type: string, examples: [Adult Red Dragon] }
+        tipo: { type: string, examples: [dragon] }
+        tamanho: { type: string, examples: [huge] }
+        alinhamento:
+          type: [string, 'null']
+          examples: [chaotic evil]
+        desafio: { type: number, examples: [17] }
+        pontos_vida: { type: integer, examples: [256] }
+        classe_armadura: { type: integer, examples: [19] }
+        idiomas:
+          type: [string, 'null']
+          examples: ['Common, Draconic']
+        atributos: { $ref: '#/components/schemas/Atributos' }
+        testes_de_resistencia:
+          type: array
+          description: Somente os proficientes, deduzidos comparando o valor do teste com o modificador do atributo.
+          items: { $ref: '#/components/schemas/TesteDeResistencia' }
+        sentidos: { $ref: '#/components/schemas/Sentidos' }
+        deslocamento: { $ref: '#/components/schemas/Deslocamento' }
+        pericias:
+          type: array
+          items: { $ref: '#/components/schemas/Pericia' }
+        imunidades_a_dano:
+          type: array
+          items: { type: string }
+          examples: [[fire]]
+        resistencias_a_dano:
+          type: array
+          items: { type: string }
+        vulnerabilidades_a_dano:
+          type: array
+          items: { type: string }
+        imunidades_a_condicao:
+          type: array
+          items: { type: string }
+        ambientes:
+          type: array
+          items: { type: string }
+          examples: [[hills, mountain]]
+        acoes:
+          type: array
+          items: { $ref: '#/components/schemas/Acao' }
+
+    Atributos:
+      type: object
+      description: Valor e modificador derivado de cada atributo.
+      required: [forca, destreza, constituicao, inteligencia, sabedoria, carisma]
+      properties:
+        forca: { $ref: '#/components/schemas/Atributo' }
+        destreza: { $ref: '#/components/schemas/Atributo' }
+        constituicao: { $ref: '#/components/schemas/Atributo' }
+        inteligencia: { $ref: '#/components/schemas/Atributo' }
+        sabedoria: { $ref: '#/components/schemas/Atributo' }
+        carisma: { $ref: '#/components/schemas/Atributo' }
+
+    Atributo:
+      type: object
+      required: [valor, modificador]
+      properties:
+        valor: { type: integer, examples: [27] }
+        modificador: { type: integer, examples: [8] }
+
+    TesteDeResistencia:
+      type: object
+      required: [atributo, bonus]
+      properties:
+        atributo:
+          type: string
+          enum: [forca, destreza, constituicao, inteligencia, sabedoria, carisma]
+        bonus: { type: integer, examples: [13] }
+
+    Sentidos:
+      type: object
+      description: Alcance em pés. Ausente do JSON quando o monstro não tem o sentido.
+      properties:
+        visao_cega: { type: [integer, 'null'], examples: [60] }
+        visao_penumbra: { type: [integer, 'null'], examples: [120] }
+        sentido_tremor: { type: [integer, 'null'] }
+        visao_verdadeira: { type: [integer, 'null'] }
+        percepcao_passiva: { type: [integer, 'null'], examples: [23] }
+
+    Deslocamento:
+      type: object
+      description: Velocidade em pés. Modos com valor zero são omitidos — zero significa "não possui".
+      properties:
+        caminhada: { type: [integer, 'null'], examples: [40] }
+        voo: { type: [integer, 'null'], examples: [80] }
+        natacao: { type: [integer, 'null'], examples: [20] }
+        escalada: { type: [integer, 'null'], examples: [40] }
+        escavacao: { type: [integer, 'null'] }
+        pode_pairar: { type: boolean, default: false }
+
+    Pericia:
+      type: object
+      required: [pericia, bonus]
+      properties:
+        pericia: { type: string, examples: [perception] }
+        bonus: { type: integer, examples: [13] }
+
+    Acao:
+      type: object
+      required: [categoria, nome, descricao]
+      properties:
+        categoria:
+          type: string
+          enum: [action, legendary_action, reaction, special_ability]
+          description: '`bonus_action` não existe no SRD 2014 e por isso não é previsto.'
+        nome: { type: string, examples: [Fire Breath] }
+        descricao: { type: string }
+        ataques:
+          type: array
+          items: { $ref: '#/components/schemas/Ataque' }
+        efeitos:
+          type: array
+          items: { $ref: '#/components/schemas/Efeito' }
+
+    Ataque:
+      type: object
+      description: |
+        Extraído de forma híbrida: o array estruturado da fonte enumera os ataques
+        (acerto e alcance) e a descrição em texto é o gabarito do dano.
+      required: [nome]
+      properties:
+        nome: { type: string, examples: [Bite attack] }
+        tipo_ataque: { type: [string, 'null'], examples: [melee_weapon] }
+        bonus_ataque: { type: [integer, 'null'], examples: [14] }
+        alcance: { type: [integer, 'null'], examples: [10] }
+        alcance_longo: { type: [integer, 'null'] }
+        dano_dado: { type: [string, 'null'], examples: ['2d10'] }
+        dano_bonus: { type: [integer, 'null'], examples: [8] }
+        dano_tipo: { type: [string, 'null'], examples: [piercing] }
+        dano_medio:
+          type: [number, 'null']
+          description: Média já calculada a partir do dado e do bônus, para o consumidor não precisar interpretar `2d10+8`.
+          examples: [19]
+        dano_extra_dado: { type: [string, 'null'], examples: ['2d6'] }
+        dano_extra_bonus: { type: [integer, 'null'] }
+        dano_extra_tipo: { type: [string, 'null'], examples: [fire] }
+        dano_extra_medio: { type: [number, 'null'], examples: [7] }
+
+    AtaqueComMonstro:
+      description: O ataque com o dono junto, para a listagem de grão de ataque.
+      allOf:
+        - $ref: '#/components/schemas/Ataque'
+        - type: object
+          required: [monstro, acao]
+          properties:
+            monstro: { type: string, examples: [Adult Red Dragon] }
+            acao: { type: string, examples: [Bite] }
+
+    Efeito:
+      type: object
+      description: |
+        Extraído por expressão regular sobre a descrição — a fonte não tem campo
+        estruturado para isso. É a parte assumidamente incompleta da ingestão.
+      properties:
+        cd_resistencia: { type: [integer, 'null'], examples: [21] }
+        atributo_resistencia:
+          type: [string, 'null']
+          examples: [dexterity]
+        condicao: { type: [string, 'null'], examples: [prone] }
+        area_tipo: { type: [string, 'null'], examples: [cone] }
+        area_tamanho: { type: [integer, 'null'], examples: [60] }
+
+    ListaDeMonstros:
+      type: object
+      required: [total, limite, deslocamento, itens]
+      properties:
+        total:
+          type: integer
+          description: Total que atende aos filtros, ignorando a paginação.
+          examples: [43]
+        limite: { type: integer, examples: [50] }
+        deslocamento: { type: integer, examples: [0] }
+        itens:
+          type: array
+          items: { $ref: '#/components/schemas/MonstroResumido' }
+
+    ListaDeAtaques:
+      type: object
+      required: [total, limite, deslocamento, itens]
+      properties:
+        total: { type: integer, examples: [542] }
+        limite: { type: integer, examples: [50] }
+        deslocamento: { type: integer, examples: [0] }
+        itens:
+          type: array
+          items: { $ref: '#/components/schemas/AtaqueComMonstro' }
+
+    LinhaDeComparacao:
+      type: object
+      required: [valor, monstros]
+      properties:
+        valor:
+          type: string
+          description: O valor da dimensão pedida em `por`.
+          examples: [dragon]
+        monstros: { type: integer, examples: [43] }
+        media_pontos_vida: { type: [number, 'null'], examples: [202] }
+        media_classe_armadura: { type: [number, 'null'], examples: [18.4] }
+        media_desafio: { type: [number, 'null'], examples: [11.5] }
+        media_dano:
+          type: [number, 'null']
+          description: Nulo quando nenhum monstro do grupo tem ataque com dano.
+          examples: [15.2]
+
+    Resumo:
+      type: object
+      required: [monstros]
+      properties:
+        monstros: { type: integer, examples: [36] }
+        media_pontos_vida: { type: [number, 'null'], examples: [167] }
+        media_classe_armadura: { type: [number, 'null'], examples: [16.8] }
+        media_desafio: { type: [number, 'null'], examples: [9.7] }
+        media_dano: { type: [number, 'null'], examples: [15.1] }
+
+    Vocabulario:
+      type: object
+      description: Cada lista traz os valores aceitos pelo filtro de mesmo nome.
+      required: [tipos, tamanhos, alinhamentos, ambientes, tipos_dano, condicoes]
+      properties:
+        tipos:
+          type: array
+          items: { type: string }
+          examples: [[aberration, beast, celestial, construct, dragon]]
+        tamanhos:
+          type: array
+          items: { type: string }
+          examples: [[tiny, small, medium, large, huge, gargantuan]]
+        alinhamentos:
+          type: array
+          items: { type: string }
+        ambientes:
+          type: array
+          items: { type: string }
+          examples: [[forest, hills, desert, mountain]]
+        tipos_dano:
+          type: array
+          items: { type: string }
+          examples: [[fire, cold, poison, necrotic]]
+        condicoes:
+          type: array
+          items: { type: string }
+          examples: [[prone, charmed, grappled, frightened]]
+
+    Problema:
+      type: object
+      description: Formato de erro do RFC 7807.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: |
+            Identificador do tipo do problema. O RFC 7807 permite referência
+            relativa, então `uri-reference` é o formato correto aqui — `uri`
+            exigiria endereço absoluto sem necessidade.
+          examples: ['/erros/filtro-invalido']
+        title:
+          type: string
+          examples: [Filtro inválido]
+        status: { type: integer, examples: [422] }
+        detail:
+          type: string
+          examples: ["'fogo' não é um valor aceito em resiste_a. Consulte /vocabulario."]
+        instance:
+          type: string
+          examples: ['/api/v1/monstros']
+
+  responses:
+    NaoEncontrado:
+      description: Não existe monstro com esse nome.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problema' }
+    ErroValidacao:
+      description: |
+        Parâmetro fora do vocabulário ou do intervalo aceito. O campo `detail`
+        aponta o parâmetro culpado e remete a `/vocabulario`.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problema' }

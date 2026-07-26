@@ -7,7 +7,7 @@ relatórios entram como funções novas, sem tocar as existentes — daí a list
 `TODOS_OS_RELATORIOS` como único ponto de registro.
 
 Os valores exibidos são as chaves canônicas em inglês do banco (`fire`, `dragon`,
-`poisoned`) — tradução para PT-BR é camada de apresentação futura (Spec 7).
+`poisoned`) — tradução para PT-BR é camada de apresentação futura (Spec 10).
 """
 
 import sqlite3

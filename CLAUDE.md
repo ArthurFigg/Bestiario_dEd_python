@@ -6,27 +6,42 @@ Bestiário de D&D 5e é uma ferramenta em Python que consome a API pública
 **Open5e v2** (`https://api.open5e.com/v2/creatures/`, escopo SRD 2014 —
 ~325 criaturas) para buscar, armazenar e analisar os monstros do D&D 5ª
 edição. O objetivo é criar um banco de dados local rico o suficiente para
-permitir pesquisas e análises sofisticadas — hoje via terminal/SQL,
-futuramente via front-end web acessível a qualquer pessoa sem conhecimento
+permitir pesquisas e análises sofisticadas — hoje via terminal/SQL, e a partir
+das Specs 7-9 via site e API HTTP acessíveis a qualquer pessoa sem conhecimento
 técnico.
 
 ## Estrutura de arquivos
 
+Itens marcados com **(7)**, **(8)** e **(9)** ainda não existem — entram nas specs
+correspondentes.
+
 ```
 Bestiario_dEd_python/
 ├── main.py               # Ponto de entrada — menu interativo no terminal
-├── bestiario/            # Pacote organizado por responsabilidade
+├── bestiario/            # Núcleo: domínio, dados e consulta (sem web)
 │   ├── __init__.py       # Re-exportações da API pública do pacote
 │   ├── cliente_api.py    # Comunicação HTTP com a API Open5e
 │   ├── banco.py          # Camada de dados: criação do SQLite e inserção
 │   ├── extracao.py       # Extração de bônus/dano das ações (regex)
-│   ├── relatorios.py     # Relatórios prontos usando pandas + tabulate
+│   ├── calculos.py       # (7) Derivações puras: modificador, saves, média de dado
+│   ├── consultas.py      # (7) Montagem parametrizada de query + presets
+│   ├── excecoes.py       # (7) Erros de domínio (dimensão/filtro inválido)
+│   ├── relatorios.py     # Relatórios do terminal — delegam a consultas.py (7)
 │   └── modelos.py        # Entidades do domínio (placeholder até a Spec 3)
+├── api/                  # (8) Superfície JSON — FastAPI, sem SQL próprio
+├── web/                  # (9) Superfície HTML — FastAPI + Jinja2
+│   ├── templates/
+│   └── static/
+├── openapi.yaml          # (8) Contrato da API, comparado ao gerado pelo código
 ├── tests/                # Testes pytest espelhando o pacote
 ├── pyproject.toml        # Projeto e dependências gerenciados por uv
 ├── bestiario_combate.db  # Banco SQLite com os dados já sincronizados
 └── CLAUDE.md             # Este arquivo
 ```
+
+**Regra de camadas:** `api/` e `web/` são duas apresentações da mesma coisa e
+**nenhuma das duas escreve SQL** — as duas chamam `bestiario/consultas.py`. A
+camada de consulta não sabe se quem pergunta é um navegador ou um script.
 
 ## Tecnologias usadas
 
@@ -35,6 +50,8 @@ Bestiario_dEd_python/
 - **requests** — chamadas HTTP para a API Open5e
 - **pandas** — manipulação de dados para relatórios
 - **tabulate** — formatação de tabelas no terminal
+- **FastAPI + uvicorn** — (8/9) servidor da API JSON e das páginas
+- **Jinja2** — (9) templates HTML renderizados no servidor
 - **API externa**: `https://api.open5e.com/v2/creatures/` (paginada, sem auth), fixada no documento SRD 2014 via `document__key=srd-2014`
 
 ## Schema do banco de dados
@@ -101,10 +118,14 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
 - [x] URLs migradas para a API v2 (`/v2/creatures/`, SRD 2014) — ver Spec 2
 - [x] Idempotência no re-sync: `INSERT OR REPLACE` em `monstros` + `DELETE` das linhas
   de lista antes do REPLACE (as FKs ativas exigem apagar filhos antes do pai)
-- [x] `bestiario_combate.db` regenerado para o schema v2 (SRD 2014): **325 monstros**,
-  tabelas de lista populadas (473 interações de dano, 339 imunidades a condição,
-  1638 ambientes, 527 perícias); `acoes`/`ataques`/`efeitos` vazias até as Specs 4-5.
+- [x] `bestiario_combate.db` no schema v2 (SRD 2014), **totalmente populado**:
+  325 monstros, 1476 ações, 542 ataques, 518 efeitos, mais as tabelas de lista
+  (473 interações de dano, 339 imunidades a condição, 1638 ambientes, 527 perícias).
   Artefato regenerável — fora do git, recriar via opção 4 do menu.
+  **Armadilha conhecida:** o arquivo pode ficar defasado em relação ao código sem
+  nenhum sinal de erro. Em 2026-07-25 a tabela `efeitos` estava com 0 linhas porque
+  o banco fora sincronizado antes da Spec 5 entrar — o código estava certo o tempo
+  todo. Ao estranhar dado ausente, re-sincronizar antes de investigar o código.
 - [x] `.gitignore` criado — `__pycache__/` e `*.pyc` fora do controle de versão
 - [x] Consulta local-primeiro nos filtros de tipo/CR (opções 2 e 3): consulta o
   SQLite antes da API v2, com fallback para a v2 quando não há dado local e rótulo
@@ -131,8 +152,12 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
 - [x] ~~**Relatórios limitados ao schema antigo**~~ — **resolvido na Spec 6**:
   baseline reescrito para o schema v2 + 4 relatórios ricos (por ambiente, comparação
   entre tipos, imunidade/resistência a dano, condições impostas).
-- [ ] **Sem front-end**: a interface é 100% terminal (front-end web segue como
-  Spec 7 futura, junto da tradução PT-BR).
+- [ ] **Sem front-end e sem API HTTP**: a interface é 100% terminal. Especificado
+  no plano das Specs 7-9 (camada de consulta → API JSON → site), com a tradução
+  PT-BR empurrada para a Spec 10. Desenho aprovado em esboço estático — ver Sessão 6.
+- [ ] **SQL espalhado**: cada relatório em `relatorios.py` carrega a própria query.
+  A Spec 7 centraliza tudo em `consultas.py` e faz os 7 delegarem — decisão do
+  usuário em 2026-07-25, para o SQL existir num lugar só.
 - [x] ~~**Sem testes automatizados**~~ — **resolvido**: suíte pytest com 65 testes
   espelhando o pacote (cliente API, banco/ingestão, extração, relatórios e
   orquestração dos filtros); mocks só na fronteira HTTP.
@@ -160,12 +185,29 @@ As melhorias abaixo foram especificadas no conjunto de 6 specs em
    `requirements.txt` (regra do CLAUDE.md global).
 5. **Expandir relatórios** (por ambiente, comparação entre tipos, imunidade/
    resistência a dano, condições impostas) → **Spec 6** — concluída.
-6. **Front-end web** — ainda **não especificado**; segue como passo futuro
-   (junto da tradução PT-BR, planejada como Spec 7 — ver Sessão 4).
+6. **Front-end web** — deixou de ser um item só. Virou o bloco de Specs 7-9
+   descrito abaixo, e a tradução PT-BR, que estava junto dele, foi separada
+   para a Spec 10.
 
 Igualmente concluídas, embora não mapeadas 1:1 na lista antiga: **Spec 2**
 (migração para a API v2, SRD 2014) e **Spec 5** (extração de efeitos —
 save DC, condição, área; parte lossy isolada).
+
+### Bloco em aberto — Specs 7 a 10
+
+Planejadas na Sessão 6 (2026-07-25), **nenhuma escrita ainda**. A ordem segue a
+regra de camadas do CLAUDE.md global: dados → lógica → apresentação.
+
+7. **Camada de consulta** (`consultas.py`, `calculos.py`, `excecoes.py`) — Python
+   puro, testável sem servidor. Monta query parametrizada a partir de filtros
+   nomeados, com lista branca de colunas. Centraliza o SQL hoje espalhado nos 7
+   relatórios, que passam a delegar.
+8. **API JSON** (`api/`) — recursos em `/api/v1/`, erros em RFC 7807, `openapi.yaml`
+   commitado e um teste de contrato barrando divergência com o que o FastAPI gera.
+9. **Site** (`web/`) — três abas (Relatórios, Pesquisar, Todos os monstros),
+   HTML renderizado no servidor, visual imitando o livro oficial.
+10. **Tradução PT-BR** — primeira spec a exigir segredo (`.env` + chave). Banco e
+    terminal continuam em inglês; a tradução é camada de apresentação.
 
 ## Histórico de sessões
 
@@ -247,15 +289,24 @@ para este momento.
 - O projeto tem como público-alvo final **usuários sem conhecimento técnico**,
   então o front-end precisa ser simples e intuitivo
 - A API Open5e é **gratuita e sem autenticação** — basta HTTP GET, endpoint atual: `https://api.open5e.com/v2/creatures/` (escopo SRD 2014, `document__key=srd-2014`)
-- O banco `bestiario_combate.db` está no schema v2 (SRD 2014): 325 monstros, com
-  `acoes`/`ataques`/`efeitos` vazias até as Specs 4-5. É artefato regenerável (fora do
-  git; recriar via opção 4 do menu)
+- O banco `bestiario_combate.db` está no schema v2 (SRD 2014) e **totalmente
+  populado** (325 monstros, 1476 ações, 542 ataques, 518 efeitos). É artefato
+  regenerável (fora do git; recriar via opção 4 do menu)
 - Os filtros de tipo/CR consultam o **SQLite primeiro**, com a API v2 apenas como
   fallback — o pressuposto antigo ("toda busca de tipo/CR vai para a API mesmo depois
   de sincronizar") deixou de valer na Spec 6
 - O código será lido por recrutadores — comentários claros e estrutura
   organizada são tão importantes quanto funcionalidade
 - Preferência por **soluções simples e legíveis** em vez de over-engineering
+- **O projeto passa a expor uma API HTTP** (Spec 8), o que muda uma premissa antiga:
+  ele deixa de ser só consumidor da Open5e e vira também provedor. Por isso o
+  `/contrato` do fluxo global, antes dispensado, passa a valer aqui
+- **Duas superfícies, um núcleo**: `api/` e `web/` nunca escrevem SQL — as duas
+  chamam `bestiario/consultas.py`. Endpoint ou rota que monte query própria é
+  violação de camada, mesmo que funcione
+- **Quando faltar um dado na tela, a resposta quase nunca é mais um botão** — é o
+  dado já estar lá. Princípio tirado do teste do esboço na Sessão 6, quando um
+  construtor com nove opções foi reprovado por exigir raciocínio antes de servir
 
 ## Como rodar
 
@@ -268,6 +319,12 @@ python main.py
 
 # Só os relatórios (standalone)
 python bestiario/relatorios.py
+
+# Servidor — site e API juntos (a partir das Specs 8-9)
+uv run uvicorn web.app:app --reload
+#   site .............. http://127.0.0.1:8000/
+#   API ............... http://127.0.0.1:8000/api/v1/monstros
+#   documentação ...... http://127.0.0.1:8000/docs
 ```
 
 ## Setup do ambiente
@@ -283,6 +340,18 @@ uv add requests>=2.32,<3.0 pandas>=2.2,<3.0 tabulate>=0.9,<1.0
 uv add --dev pytest>=8.0,<9.0
 ```
 
+**Dependências das Specs 8-9** (rodar quando a spec chegar, não antes):
+```bash
+uv add fastapi>=0.115,<1.0 uvicorn>=0.32,<1.0 jinja2>=3.1,<4.0
+uv add --dev httpx>=0.27,<1.0 pyyaml>=6.0,<7.0
+```
+`httpx` é exigida pelo `TestClient` do FastAPI; `pyyaml` serve ao teste de contrato,
+que lê o `openapi.yaml` para compará-lo com o esquema gerado pelo código. Ambas são
+de teste, então entram como dev. Tetos de versão conforme a regra global.
+
+O `/planejar-setup` foi **pulado de propósito** para este bloco (decisão do usuário
+em 2026-07-25): as deps já estavam decididas, e rodar o passo daria a mesma lista.
+
 **Pastas a criar:**
 ```bash
 mkdir -p bestiario tests
@@ -293,16 +362,18 @@ touch bestiario/__init__.py
 ```
 nenhuma
 ```
-(A API Open5e é gratuita e sem autenticação — não há variável de ambiente
-agora. A tradução via Grok, planejada para a Spec 7 futura, trará uma chave
-quando for especificada.)
+(A API Open5e é gratuita e sem autenticação — não há variável de ambiente agora.
+As Specs 7-9 também não pedem segredo: o servidor só lê o SQLite local. A primeira
+a exigir chave é a **Spec 10** (tradução PT-BR), e é lá que o `.env` nasce.)
 
 **Dependencias que ficam de fora agora** (entram quando a spec chegar):
 - nenhuma — a Spec 1 (fundação) já move `cliente_api.py` (requests),
   `relatorios.py` (pandas + tabulate) e `banco.py` (sqlite3, stdlib), então
   as três deps de produção são necessárias desde o início.
-- Specs 2-6 não introduzem dependências novas (SQLite é stdlib).
-- Front-end web + cliente Grok para tradução: Spec 7 (futura, ainda não especificada).
+- Specs 2-7 não introduzem dependências novas (SQLite é stdlib, e a camada de
+  consulta da Spec 7 é Python puro sobre `sqlite3` + pandas, já presentes).
+- Specs 8-9: `fastapi`, `uvicorn`, `jinja2` de produção; `httpx` e `pyyaml` de teste.
+- Spec 10 (tradução): cliente do modelo + `pydantic-settings` ou `python-dotenv`.
 
 **CI — `.github/workflows/tests.yml`:**
 ```yaml
@@ -354,7 +425,9 @@ ataques/efeitos.
 4. **Schema relacional normalizado**: monstros + acoes + ataques + efeitos +
    tabelas de lista (monstro_interacao_dano com coluna `relacao`,
    monstro_imunidade_condicao, monstro_ambiente, monstro_pericia). ~9 tabelas.
-5. **Traducao PT-BR** e passo FUTURO, so no front-end (Spec 7): dict estatico
+5. **Traducao PT-BR** e passo FUTURO, so no front-end (Spec 7 *à época* — foi
+   renumerada para **Spec 10** na Sessao 6, quando o front virou tres specs):
+   dict estatico
    para vocabulario controlado + Grok (tier gratuito) para texto livre. Banco
    e terminal ficam em ingles. Ver memoria `traducao-camada-frontend`.
 6. **Banco e artefato regeneravel**: migracao = apagar `bestiario_combate.db`
@@ -442,3 +515,117 @@ seguir a ordem 2→6.
 **Specs concluidas:** 6 de 6
 **Commits:** 18
 **Periodo:** 2026-02-08 a 2026-07-22 (9 dias ativos)
+
+---
+
+### Sessão 6 — 2026-07-25 — reabertura para o front
+
+Projeto reaberto depois do release v0.1.0. Sessão **inteiramente de desenho** —
+nenhuma linha de código de aplicação foi escrita.
+
+**Achado que motivou um conserto:** a tabela `efeitos` estava com **0 linhas**,
+apesar da Spec 5 constar como concluída. Diagnóstico: o código sempre esteve
+certo (`extrair_efeitos` acerta o Fire Breath do Adult Red Dragon), o banco é que
+fora sincronizado antes da Spec 5 entrar. Re-sincronizado: 518 efeitos. Lição
+registrada na seção "O que já funciona" — banco defasado não emite erro.
+
+**Desenho das telas — decidido pelo usuário:**
+1. **Relatórios** — construtor de análises próprias (a mais complexa).
+2. **Pesquisar** — busca que acumula até 3 monstros na tela para comparar.
+3. **Todos os monstros** — tabela completa dos 325, ordenável.
+
+Botão global **resumida/completa** por aba, mudando todos os monstros de uma vez.
+
+**Decisões de produto:**
+- **Construtor por cliques, não linguagem natural.** Descartado LLM gerando SQL —
+  eliminaria custo, não-determinismo e uma superfície de injeção real.
+- **Filtros nomeados** em português claro, não linha genérica `[campo][operador]
+  [valor]`. Combinação global "atende **todos** / **qualquer** filtro", sem
+  misturar E e OU (evita parênteses e precedência na tela).
+- **Sem gráfico.** Só tabela.
+- **A poda do construtor.** A primeira versão tinha dois cartões, "Para cada [X]"
+  e nove caixas de métrica. Veredito do usuário testando o esboço: *"no geral está
+  confuso demais — se tem que pensar para entender, já mostra que está ruim."*
+  Sobrou um cartão e **uma escolha**: `( ) Ver os monstros` / `(•) Comparar por
+  [tipo]`. Métricas viraram colunas fixas; faixa de resumo e coluna de dano passam
+  a estar sempre na tela, sem seletor. Daí saiu o princípio registrado em "Contexto
+  para decisões futuras".
+- **Navegação nos dois sentidos:** selo da ficha (`imune a fire`) leva ao relatório
+  filtrado; resultado do relatório leva os monstros para a aba Pesquisar já fixados.
+- **Link JSON embaixo de cada ficha** na aba Pesquisar — é o que impede a API de
+  ficar decorativa, junto com a busca da própria aba consumindo `/api/v1/monstros`.
+
+**Decisão de arquitetura — o projeto passa a expor API.** Motivação declarada:
+currículo. Risco enunciado e aceito: API que nada consome é pior que API nenhuma,
+por isso os dois consumidores acima. Consequência de fluxo: o `/contrato`, antes
+dispensável (projeto só consumia API externa), passa a valer.
+
+**Direção visual — extensão do livro oficial.** Três capturas do Livro do Jogador
+PT-BR em `OneDrive\Imagens\Documentos\projetos\imagens pro rpg` são a referência.
+Elementos tirados dali: cunha vermelha afilada como separador, zebra verde-salva
+nas tabelas, moldura com volutas nos cantos e fio dourado, tarja vermelha no topo
+e dourada no pé da ficha, papel claro e quente com grão. Tipografia **Cinzel** +
+**EB Garamond**, ambas SIL OFL, embutidas em base64 (as do livro, Modesto e
+Bookmania, são comerciais). **Tema único claro** — o livro não tem versão escura.
+
+**Esboço aprovado** ("o front está perfeito"). Mora em pasta de scratchpad, com
+o CSS e as fontes: precisa ser copiado para o repositório na Spec 9, sob risco de
+se perder. Publicado em
+`https://claude.ai/code/artifact/ea08e1e1-cbd8-4aec-a182-0d05b637b7cc`.
+
+**Decisões de processo:** `relatorios.py` **será refatorado** para delegar a
+`consultas.py` (SQL num lugar só); `/planejar-setup` **pulado**; `/dominio` **não**
+será retroagido, por ser passo de início de projeto e o domínio já estar descrito
+aqui.
+
+**Domínio, contrato e specs — feitos nesta sessão:**
+
+- `/dominio` rodou (decisão revista: eu tinha proposto pular, o usuário questionou e
+  estava certo — os nomes da API são públicos e caros de mudar, e o dicionário da
+  Spec 10 nasce do glossário). Gerou `.claude/specs/_dominio.md`: 4 entidades
+  gravadas, 3 calculadas, 14 termos, contexto único.
+- `/contrato` rodou. Gerou `openapi.yaml` na raiz — OpenAPI 3.1, 6 endpoints, 18
+  schemas, RFC 7807, validado pelo Redocly. **API só de leitura**: escrita criaria
+  uma segunda verdade que o re-sync apagaria em silêncio.
+- 7 specs criadas: **7a** (núcleo de consulta), **7b** (relatórios delegando),
+  **7c** (menu migrado), **8** (API JSON), **9a** (moldura + aba Todos),
+  **9b** (aba Relatórios), **9c** (aba Pesquisar). A 7 e a 9 foram divididas por
+  passar do limite de score.
+- `/spec-review` rodou com 7 verificadores em paralelo e **achou muita coisa real**.
+
+**O que o `/spec-review` pegou, e que já foi corrigido:**
+
+- **A 7a estava incompleta** e era a causa raiz de quase tudo: faltavam ordenação,
+  contagem para paginação, leitura de ficha completa, busca por nome exato e
+  resolução de lista de nomes. Como `api/` e `web/` têm SQL proibido, esses dados
+  não teriam de onde sair. Foi **reescrita**, não remendada.
+- **A API montaria em `/api/v1/api/v1/`** — a 8 prefixava e a 9a montava com o mesmo
+  prefixo. Resolvido: a API vira roteador **incluído**, não sub-aplicação montada.
+  Isso conserta junto o `/docs`, que ficaria em `/api/v1/docs`, fora de onde o
+  rodapé aponta.
+- **Dependência circular 9a ↔ 9c** pelo bloco de estatísticas. O `_ficha.html` passa
+  a nascer inteiro na 9c, que ganhou permissão de editar `todos.html`.
+- **O `combinar` não atravessava** do relatório para a aba Pesquisar: mesmo recorte,
+  conjunto diferente, sem erro nenhum.
+- **Três relatórios não cabem no núcleo** sem torná-lo bem maior (agrupamento por
+  duas dimensões, concatenação de nomes). Decisão do usuário: **os três mudam de
+  formato**. Princípio registrado: *o motor cresce pelo que vem, não pelo que já foi.*
+- **Testes dependiam do banco real**, que está fora do git e não existe no CI.
+  Passam a usar fixture única em `tests/web/conftest.py`.
+- **Contrato corrigido** antes da implementação: resposta padrão cobrindo o 503,
+  filtros `vulneravel_a` e `imune_a_condicao`, ordenação em `/monstros` e
+  `dano_medio` na forma enxuta.
+
+**Pendências ao fim da sessão:**
+
+- As 7 specs seguem com `Revisão: pendente`. Falta decidir se os verificadores
+  rodam de novo — a 7a foi reescrita, então a revisão dela valeu sobre uma versão
+  que não existe mais. Enquanto pendentes, o gate bloqueia implementação.
+- **O gate de specs não cobre Bash.** Ele intercepta `Edit` e `Write`, mas o
+  `openapi.yaml` foi alterado por script Python sem nenhum aviso. Vale fechar.
+- O esboço visual aprovado ainda mora em pasta temporária. A Spec 9a precisa
+  copiá-lo para o repositório, ou o CSS e as fontes em base64 se perdem.
+
+**Próximo passo (retomar aqui):** decidir entre re-rodar o `/spec-review` ou aprovar
+as specs como estão. Aprovadas, a ordem de implementação é
+7a → 7b → 7c → 8 → 9a → 9b → 9c, cada uma fechando com `/spec-close`.
