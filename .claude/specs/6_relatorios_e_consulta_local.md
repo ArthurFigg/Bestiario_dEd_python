@@ -81,4 +81,22 @@ Seção adicionada retroativamente (spec anterior à regra "spec declara e /spec
 - Contexto para decisões futuras → o pressuposto "todas as buscas de tipo/CR vão para a API mesmo depois de sincronizar" deixa de valer (agora é local primeiro, API como fallback).
 
 ---
+**Supersessao parcial** — 2026-07-26, pelas Specs 7b e 7c
+
+A **politica** decidida aqui continua valendo inteira: consulta local primeiro, API
+v2 como fallback, com rotulo de origem `[local]`/`[API]`. O que mudou foi quem
+responde a parte local e o formato de alguns relatorios.
+
+- `consultar_por_tipo` e `consultar_por_cr` **nao existem mais** em `banco.py`
+  (Spec 7c). O menu chama `executar_consulta` do nucleo; `banco.py` voltou a ter
+  responsabilidade unica — criar schema e gravar.
+- `main.consultar_cr` virou **`consultar_desafio`**, e o rotulo impresso passou de
+  `CR:` para `Desafio:` — o `_dominio.md` marca "CR" como termo a evitar.
+- Cinco dos sete relatorios mudaram de formato ou ordenacao (Spec 7b). Em especial:
+  "condicoes impostas" **perdeu a coluna com os nomes** de quem impoe cada condicao,
+  e "comparacao entre tipos" passou a ordenar por contagem de monstros em vez de
+  desafio medio. As descricoes desses dois nesta spec estao desatualizadas.
+- O comando standalone dos relatorios passou a ser `python -m bestiario.relatorios`.
+
+---
 **Status:** concluida em 2026-07-22

@@ -19,8 +19,21 @@ Faz os filtros do menu do terminal consultarem o núcleo em vez das duas funçõ
 - Quando a consulta local não devolve nada, o menu **continua caindo para a API v2** e exibe com o rótulo `[API]`. O comportamento de consulta local primeiro, decidido na Spec 6, não muda — só troca quem responde a parte local.
 - Quando o usuário digita um tipo que não existe no vocabulário (ex: `dragão`), o núcleo levanta `ValorDeFiltroInvalido`. O menu **captura** a exceção e vai para o fallback da API, em vez de vazar erro na tela. Um tipo desconhecido localmente pode existir na API, e o usuário do terminal não deve ver rastro de exceção.
 - Quando o usuário digita um desafio não numérico, o menu trata como sem resultado local e segue para o fallback, como já fazia.
+- **Entrada vazia não consulta nada** — nem o núcleo, nem a API. Descoberto ao
+  implementar: o núcleo descarta filtro vazio e o trata como "sem filtro", então
+  `tipo=""` devolveria os 325; e a Open5e ignora `challenge_rating=` vazio e
+  devolve o SRD inteiro (esse já era o comportamento antes desta spec). Quem só
+  apertou Enter não pediu o bestiário inteiro. A guarda fica nas funções de
+  orquestração, não no menu: é regra de consulta, e no menu qualquer chamador
+  futuro repetiria o erro.
 - Quando nem o local nem a API devolvem nada, exibe "Nenhum monstro encontrado.", como hoje.
-- As opções 1 (buscar e registrar por nome), 4 (sincronizar) e 5 (ver relatórios) **não mudam**.
+- As opções 4 (sincronizar) e 5 (ver relatórios) **não mudam**.
+- A opção 1 muda **só na exibição**: ela imprimia `monstro['type']` cru, e na v2
+  esse campo é objeto — a tela mostrava `{'key': 'dragon', 'name': 'Dragon'}`.
+  Passa a projetar com `_projetar_api` antes de exibir, reaproveitando a extração
+  de chave que já existia. O que é gravado no banco não muda. Acrescentado por
+  decisão do usuário em 2026-07-26: esta é a última spec que toca `main.py`, e
+  deixar o defeito aqui o congelaria.
 - `consultar_por_tipo` e `consultar_por_cr` são removidas de `banco.py`, junto de suas re-exportações. Depois desta spec, `banco.py` volta a ter uma responsabilidade só: criar o schema e gravar dado.
 
 ## Critérios verificáveis
@@ -29,11 +42,16 @@ Faz os filtros do menu do terminal consultarem o núcleo em vez das duas funçõ
 - [ ] Teste confirma que, sem resultado local para o desafio, o fallback chama o cliente v2 com o **texto digitado** (`"17"`), e não com o número convertido (`17.0`).
 - [ ] Busca por `consultar_por_tipo` e `consultar_por_cr` em `bestiario/`, `main.py` e `tests/` não encontra nenhuma ocorrência. O escopo é o código: os nomes continuam citados nas specs, que são registro histórico.
 - [ ] Teste confirma que o rótulo impresso diz `Desafio:` e não `CR:`.
+- [ ] Teste confirma que a projeção da API extrai a chave do `type` objeto da v2,
+      em vez de devolver o dicionário inteiro.
 - [ ] Teste confirma que filtrar por tipo com o monstro já gravado devolve a linha local **sem** chamar a API — o dublê do cliente v2 não é invocado.
 - [ ] Teste confirma que, sem correspondência local, o filtro por tipo chama o fallback da API e devolve o resultado remoto.
 - [ ] Teste confirma que a saída rotula a origem: `[local]` para linha do banco, `[API]` para fallback.
 - [ ] Teste confirma que tipo fora do vocabulário (`dragão`) não propaga exceção: cai no fallback da API.
 - [ ] Teste confirma que desafio não numérico não quebra e segue para o fallback.
+- [ ] Teste confirma que tipo vazio devolve lista vazia **sem chamar a API** e sem
+      devolver o bestiário inteiro.
+- [ ] Teste confirma o mesmo para desafio vazio ou só com espaços.
 - [ ] Teste confirma que, sem resultado em lugar nenhum, a saída é "Nenhum monstro encontrado.".
 - [ ] `python main.py` roda o menu de ponta a ponta com as opções 2 e 3 contra o banco real.
 
@@ -54,7 +72,7 @@ Faz os filtros do menu do terminal consultarem o núcleo em vez das duas funçõ
 - `bestiario/cliente_api.py` — o fallback continua chamando o mesmo cliente, sem alteração.
 - `bestiario/extracao.py` e o schema do banco.
 - A ordem "local primeiro, API como fallback" e os rótulos `[local]`/`[API]` — decisão da Spec 6, preservada.
-- As opções 1, 4 e 5 do menu.
+- As opções 4 e 5 do menu, e o que a opção 1 **grava** no banco — só a exibição dela muda.
 
 ## Decisões tomadas
 
@@ -67,3 +85,6 @@ Faz os filtros do menu do terminal consultarem o núcleo em vez das duas funçõ
 - **Estrutura de arquivos** → confirmar que a descrição de `banco.py` continua sendo só "criação do SQLite e inserção". A linha já está assim: a Spec 6 acrescentou consulta ao módulo sem nunca atualizar o CLAUDE.md, e esta spec devolve o arquivo ao que a documentação sempre disse.
 - **O que já funciona** → o item de consulta local-primeiro (Spec 6) passa a citar o núcleo como quem responde a parte local; a política em si não muda.
 - **Bloco em aberto — Specs 7 a 10** → marcar 7c como concluída e a Spec 7 inteira como fechada.
+
+---
+**Status:** concluida em 2026-07-26

@@ -1,11 +1,6 @@
 """Bestiário de D&D 5e — API pública do pacote."""
 
-from bestiario.banco import (
-    consultar_por_cr,
-    consultar_por_tipo,
-    criar_base_de_dados,
-    registrar_monstro,
-)
+from bestiario.banco import criar_base_de_dados, registrar_monstro
 from bestiario.calculos import media_de_dado, modificador, saves_proficientes
 from bestiario.cliente_api import (
     buscar_monstro_na_api,
@@ -42,8 +37,6 @@ from bestiario.extracao import extrair_ataque
 __all__ = [
     "criar_base_de_dados",
     "registrar_monstro",
-    "consultar_por_tipo",
-    "consultar_por_cr",
     # Consulta remota na Open5e. O nome diz de onde o dado vem: depois da 7a,
     # `buscar_monstro` sem qualificador é a consulta local, o caminho principal.
     "buscar_monstro_na_api",

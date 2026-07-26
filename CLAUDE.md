@@ -133,9 +133,11 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
   o banco fora sincronizado antes da Spec 5 entrar — o código estava certo o tempo
   todo. Ao estranhar dado ausente, re-sincronizar antes de investigar o código.
 - [x] `.gitignore` criado — `__pycache__/` e `*.pyc` fora do controle de versão
-- [x] Consulta local-primeiro nos filtros de tipo/CR (opções 2 e 3): consulta o
-  SQLite antes da API v2, com fallback para a v2 quando não há dado local e rótulo
-  de origem `[local]`/`[API]` na saída (Spec 6)
+- [x] Consulta local-primeiro nos filtros de tipo/desafio (opções 2 e 3): consulta o
+  banco antes da API v2, com fallback para a v2 quando não há dado local e rótulo
+  de origem `[local]`/`[API]` na saída (Spec 6). Desde a **Spec 7c** quem responde a
+  parte local é o núcleo (`consultas.py`), não `banco.py`; a política não mudou.
+  Entrada vazia não consulta nada — nem o núcleo, nem a API.
 - [x] **Camada de consulta** (`consultas.py`, Spec 7a): monta query parametrizada a
   partir de filtros nomeados com lista branca, valida valor contra o vocabulário lido
   do banco, ordena e pagina no SQL, conta ignorando paginação, lê a ficha completa de
@@ -168,18 +170,20 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
   `action_type` + `special_ability` de `traits`). `BONUS_ACTION` não existe no
   SRD 2014 (0 de 944 ações), então não é previsto.
 - [x] ~~**Sem pesquisa no banco local**~~ — **resolvido na Spec 6**: os filtros de
-  tipo/CR (opções 2 e 3) consultam o SQLite primeiro e só caem para a API v2 no
-  fallback, com rótulo de origem `[local]`/`[API]`.
+  tipo/desafio (opções 2 e 3) consultam o banco primeiro e só caem para a API v2 no
+  fallback, com rótulo de origem `[local]`/`[API]`. A **Spec 7c** trocou o executor
+  pelo núcleo e renomeou `consultar_cr` para `consultar_desafio` (o rótulo impresso
+  virou `Desafio:`).
 - [x] ~~**Relatórios limitados ao schema antigo**~~ — **resolvido na Spec 6**:
   baseline reescrito para o schema v2 + 4 relatórios ricos (por ambiente, comparação
   entre tipos, imunidade/resistência a dano, condições impostas).
 - [ ] **Sem front-end e sem API HTTP**: a interface é 100% terminal. Especificado
   no plano das Specs 7-9 (camada de consulta → API JSON → site), com a tradução
   PT-BR empurrada para a Spec 10. Desenho aprovado em esboço estático — ver Sessão 6.
-- [x] ~~**SQL espalhado**~~ — **resolvido na Spec 7b**: `consultas.py` é o único lugar
-  do projeto onde SQL de leitura é escrito, e os 7 relatórios delegam a ele. Falta só
-  o menu (`main.py`), que a **Spec 7c** migra.
-- [x] ~~**Sem testes automatizados**~~ — **resolvido**: suíte pytest com 156 testes
+- [x] ~~**SQL espalhado**~~ — **resolvido nas Specs 7b e 7c**: `consultas.py` é o
+  único lugar do projeto que lê o banco. Os 7 relatórios e as opções 2 e 3 do menu
+  delegam a ele, e `consultar_por_tipo`/`consultar_por_cr` deixaram de existir.
+- [x] ~~**Sem testes automatizados**~~ — **resolvido**: suíte pytest com 172 testes
   espelhando o pacote (cliente API, banco/ingestão, extração, derivações puras,
   camada de consulta, relatórios e orquestração dos filtros); mocks só na fronteira
   HTTP, e a camada de consulta testada contra SQLite em memória.
@@ -223,8 +227,10 @@ regra de camadas do CLAUDE.md global: dados → lógica → apresentação.
 7. **Camada de consulta** — dividida em três specs. **7a (`consultas.py`,
    `calculos.py`, `excecoes.py`) concluída em 2026-07-26**: Python puro, testável
    sem servidor, com lista branca de filtros/dimensões/ordenações. **7b (relatórios
-   delegando) concluída em 2026-07-26** — fechou o item "SQL espalhado". Falta a
-   **7c** (menu migrado).
+   delegando) e **7c (menu migrado) também concluídas em 2026-07-26**. A 7b fechou o
+   item "SQL espalhado"; a 7c removeu `consultar_por_tipo`/`consultar_por_cr` de
+   `banco.py`, que voltou a ter responsabilidade única. **Spec 7 fechada** —
+   `consultas.py` é o único lugar do projeto que lê o banco.
 8. **API JSON** (`api/`) — recursos em `/api/v1/`, erros em RFC 7807, `openapi.yaml`
    commitado e um teste de contrato barrando divergência com o que o FastAPI gera.
 9. **Site** (`web/`) — três abas (Relatórios, Pesquisar, Todos os monstros),
