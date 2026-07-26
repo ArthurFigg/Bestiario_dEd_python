@@ -1,15 +1,52 @@
 """Derivações puras das regras de D&D — sem I/O, sem pandas, sem sqlite.
 
-Nasce na revisão da Spec 4 com `media_de_dado`, porque a ingestão precisa gravar
-a média do dano no banco. A Spec 7a acrescenta aqui `modificador` e
-`saves_proficientes`. Manter a fórmula num módulo só evita que a mesma conta
-exista na ingestão e na camada de consulta e as duas divirjam com o tempo.
+`media_de_dado` nasceu na revisão da Spec 4, porque a ingestão precisa gravar a
+média do dano no banco; `modificador` e `saves_proficientes` entraram na Spec 7a.
+Manter as fórmulas num módulo só evita que a mesma conta exista na ingestão e na
+camada de consulta e as duas divirjam com o tempo.
 """
 
 import re
 
 # "2d10", "1d6" — o formato que a extração grava em `ataques.dano_dado`.
 _DADO = re.compile(r"^(\d+)d(\d+)$")
+
+ATRIBUTOS = (
+    "forca",
+    "destreza",
+    "constituicao",
+    "inteligencia",
+    "sabedoria",
+    "carisma",
+)
+
+
+def modificador(valor):
+    """Modificador de atributo: (valor - 10) // 2. 27 vira 8, 7 vira -2."""
+    if valor is None:
+        return None
+    return (valor - 10) // 2
+
+
+def saves_proficientes(linha):
+    """Atributos em que o teste de resistência difere do modificador do atributo.
+
+    O schema guarda os seis testes já derivados e nunca nulos, então não há coluna
+    de proficiência para ler: a diferença em relação ao modificador é o que a
+    denuncia. O bloco impresso do livro só lista os proficientes.
+
+    `linha` é qualquer mapeamento com as chaves de atributo e `{atributo}_save` —
+    um `sqlite3.Row` ou um dict servem.
+    """
+    proficientes = []
+    for atributo in ATRIBUTOS:
+        valor = linha[atributo]
+        save = linha[f"{atributo}_save"]
+        if valor is None or save is None:
+            continue
+        if save != modificador(valor):
+            proficientes.append(atributo)
+    return proficientes
 
 
 def media_de_dado(dado, bonus):

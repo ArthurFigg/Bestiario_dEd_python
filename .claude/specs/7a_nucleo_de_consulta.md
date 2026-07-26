@@ -147,7 +147,8 @@ Cria a camada que monta e executa consultas sobre o SQLite a partir de filtros n
 ## Módulos afetados
 
 - `bestiario/calculos.py` — **já existe** com `media_de_dado`, criado na Revisão 1 da Spec 4 (a ingestão precisava da fórmula para gravar `dano_medio`). Esta spec acrescenta `modificador` e `saves_proficientes`. Funções puras, sem I/O, sem pandas nem sqlite.
-- `bestiario/consultas.py` — NOVO. `montar_consulta` (pura), `executar_consulta`, `contar`, `buscar_monstro`, `resolver_nomes`, `vocabulario`, as listas brancas `FILTROS`/`DIMENSOES`/`METRICAS`/`ORDENACOES` e o `PRESETS`.
+- `bestiario/consultas.py` — NOVO. `montar_consulta` (pura), `executar_consulta`, `contar`, `buscar_monstro`, `resolver_nomes`, `vocabulario`, `abrir_conexao`, as listas brancas `FILTROS`/`DIMENSOES`/`METRICAS`/`ORDENACOES` e o `PRESETS`.
+- `abrir_conexao` foi acrescentada ao implementar: abre em modo `ro` de verdade, porque `sqlite3.connect` comum **cria um banco vazio em silêncio** quando o caminho está errado, e o engano só apareceria depois como "nenhum monstro encontrado". Reforça o "só leitura" que esta spec já declarava em Não mexer.
 - `bestiario/excecoes.py` — NOVO. Exceção base mais `FiltroDesconhecido` e `ValorDeFiltroInvalido`.
 - `bestiario/__init__.py` — acrescenta as re-exportações da API pública nova. Só re-exportação. **`cliente_api.buscar_monstro` é renomeada para `buscar_monstro_na_api`** aqui e em `cliente_api.py`, `main.py` e `tests/test_cliente_api.py`: sem isso as duas funções de mesmo nome se re-exportam no mesmo `__init__.py` e a segunda sobrescreve a primeira **sem erro de import**. Depois da 7a, `buscar_monstro` sem qualificador significa a consulta local, que é o caminho principal; o nome novo diz de onde o dado vem. Decisão do usuário em 2026-07-26.
 - `tests/test_calculos.py` — NOVO. Sem mock: é tudo função pura.
@@ -186,3 +187,6 @@ Cria a camada que monta e executa consultas sobre o SQLite a partir de filtros n
 - **O que já funciona** → acrescentar item de camada de consulta parametrizada com lista branca, validação de vocabulário, ordenação e leitura de ficha.
 - **O que está incompleto** → o item "SQL espalhado" **continua aberto**: a camada existe, mas `relatorios.py` só delega na 7b.
 - **Bloco em aberto — Specs 7 a 10** → marcar 7a como concluída e registrar que a 7 virou três specs.
+
+---
+**Status:** concluida em 2026-07-26

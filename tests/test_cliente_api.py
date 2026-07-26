@@ -3,7 +3,7 @@ import requests
 from bestiario import cliente_api
 from bestiario.cliente_api import (
     DOCUMENTO_SRD,
-    buscar_monstro,
+    buscar_monstro_na_api,
     filtrar_monstros,
     sincronizar_base_completa,
 )
@@ -36,22 +36,22 @@ def _instalar_get(monkeypatch, respostas):
     return fake
 
 
-# --- buscar_monstro ---
+# --- buscar_monstro_na_api ---
 
 
 def test_buscar_monstro_devolve_dict_do_srd_no_status_200(monkeypatch):
     _instalar_get(monkeypatch, [_Resposta(200, {"results": [{"key": "srd_goblin"}]})])
-    assert buscar_monstro("goblin")["key"] == "srd_goblin"
+    assert buscar_monstro_na_api("goblin")["key"] == "srd_goblin"
 
 
 def test_buscar_monstro_sem_correspondencia_no_srd_devolve_none(monkeypatch):
     _instalar_get(monkeypatch, [_Resposta(200, {"results": []})])
-    assert buscar_monstro("inexistente") is None
+    assert buscar_monstro_na_api("inexistente") is None
 
 
 def test_buscar_monstro_devolve_none_em_status_404(monkeypatch):
     _instalar_get(monkeypatch, [_Resposta(404, {})])
-    assert buscar_monstro("goblin") is None
+    assert buscar_monstro_na_api("goblin") is None
 
 
 def test_buscar_monstro_trata_erro_de_conexao(monkeypatch):
@@ -59,12 +59,12 @@ def test_buscar_monstro_trata_erro_de_conexao(monkeypatch):
         raise requests.exceptions.RequestException
 
     monkeypatch.setattr(cliente_api.requests, "get", _lanca)
-    assert buscar_monstro("goblin") is None
+    assert buscar_monstro_na_api("goblin") is None
 
 
 def test_buscar_monstro_restringe_ao_documento_srd_2014(monkeypatch):
     fake = _instalar_get(monkeypatch, [_Resposta(200, {"results": [{"key": "x"}]})])
-    buscar_monstro("goblin")
+    buscar_monstro_na_api("goblin")
     assert fake.chamadas[0][1]["params"]["document__key"] == DOCUMENTO_SRD
 
 

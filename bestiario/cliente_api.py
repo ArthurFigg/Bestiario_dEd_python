@@ -14,7 +14,7 @@ URL_BASE = "https://api.open5e.com/v2/creatures/"
 DOCUMENTO_SRD = "srd-2014"
 
 
-def buscar_monstro(nome):
+def buscar_monstro_na_api(nome):
     """Retorna o dict da criatura do SRD 2014 com esse nome, ou None se não houver.
 
     `name__iexact` casa o nome de forma exata mas insensível a maiúsculas (o filtro

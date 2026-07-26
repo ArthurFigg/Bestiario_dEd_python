@@ -7,7 +7,7 @@ from bestiario.banco import (
     registrar_monstro,
 )
 from bestiario.cliente_api import (
-    buscar_monstro,
+    buscar_monstro_na_api,
     filtrar_monstros,
     sincronizar_base_completa,
 )
@@ -84,7 +84,7 @@ def executar_menu():
 
         if opcao == "1":
             nome_monstro = input("Digite o nome do monstro: ")
-            monstro = buscar_monstro(nome_monstro)
+            monstro = buscar_monstro_na_api(nome_monstro)
             if monstro:
                 print(f"Nome: {monstro['name']}")
                 print(f"Tipo: {monstro['type']}")
