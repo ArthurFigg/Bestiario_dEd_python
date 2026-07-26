@@ -161,6 +161,34 @@ _VOCABULARIO = {
     "relacao": ("monstro_interacao_dano", "relacao", ""),
 }
 
+# Filtros que compartilham **domínio de valores**, e as seis chaves com que o
+# contrato os publica. A validação usa o domínio, não o filtro isolado: `radiant`
+# é um tipo de dano legítimo mesmo que nenhum monstro seja imune a ele, e
+# "ninguém é imune a radiant" é pergunta coerente sem resposta — devolve vazio,
+# pelo mesmo motivo que `desafio_min=20, desafio_max=5` devolve vazio. Só valor
+# que não existe em domínio nenhum (`fogo`) é engano de quem escreveu, e esse
+# continua levantando.
+#
+# Validar por filtro fazia `/vocabulario` mentir: ele anunciava `radiant` em
+# `tipos_dano` e o filtro `imune_a=radiant` respondia 422 — justo no endpoint que
+# existe para o consumidor não precisar adivinhar.
+DOMINIOS_DE_FILTRO = {
+    "tipos": ("tipo",),
+    "tamanhos": ("tamanho",),
+    "alinhamentos": ("alinhamento",),
+    "ambientes": ("ambiente",),
+    "tipos_dano": ("imune_a", "resiste_a", "vulneravel_a"),
+    "condicoes": ("imune_a_condicao", "impoe"),
+}
+
+# Filtro → chave de domínio a que ele pertence. Derivado do mapa acima para a
+# validação não precisar percorrê-lo a cada chamada.
+_DOMINIO_DO_FILTRO = {
+    filtro: dominio
+    for dominio, filtros in DOMINIOS_DE_FILTRO.items()
+    for filtro in filtros
+}
+
 # Presets: nome → parâmetros prontos. Não é código, é parâmetro — cobrem os
 # relatórios de `relatorios.py`, que passam a chamá-los na 7b.
 PRESETS = {
@@ -442,15 +470,17 @@ def contar(conexao, filtros=None, grao="monstros"):
 
 
 def _validar_valores(conexao, filtros):
-    """Valor fora do vocabulário levanta erro; intervalo invertido, não.
+    """Valor fora do **domínio** levanta erro; fora do filtro específico, não.
 
     `resiste_a="fogo"` é engano de quem escreveu — devolver vazio esconderia o
-    erro. Já "de 20 até 5" é pergunta coerente sem resposta, e o BETWEEN do SQL
-    já devolve vazio sozinho.
+    erro. Já `imune_a="radiant"` num banco sem imune a radiant é pergunta coerente
+    sem resposta, do mesmo jeito que "de 20 até 5": devolve vazio. É a distinção
+    entre valor inexistente e valor sem ocorrência, e é ela que faz
+    `/vocabulario` poder ser publicado em seis chaves sem mentir.
     """
     if not filtros:
         return
-    vocabulario_por_filtro = None
+    lido = None
     for chave, valor in filtros.items():
         if valor is None or valor == "":
             continue
@@ -458,11 +488,12 @@ def _validar_valores(conexao, filtros):
             if valor not in _VALORES_FIXOS[chave]:
                 raise ValorDeFiltroInvalido(chave, valor)
             continue
-        if chave not in _VOCABULARIO:
+        if chave not in _DOMINIO_DO_FILTRO:
             continue
-        if vocabulario_por_filtro is None:
-            vocabulario_por_filtro = vocabulario(conexao)
-        if valor not in vocabulario_por_filtro.get(chave, {}):
+        if lido is None:
+            lido = vocabulario(conexao)
+        irmaos = DOMINIOS_DE_FILTRO[_DOMINIO_DO_FILTRO[chave]]
+        if not any(valor in lido.get(irmao, {}) for irmao in irmaos):
             raise ValorDeFiltroInvalido(chave, valor)
 
 
@@ -506,6 +537,22 @@ def vocabulario(conexao):
         )
     }
     return resultado
+
+
+def vocabulario_por_dominio(conexao):
+    """As seis chaves de domínio, cada uma com os valores ordenados, sem contagem.
+
+    É a forma que o contrato publica em `/vocabulario`. Mora aqui, e não na rota,
+    porque é o mesmo agrupamento que `_validar_valores` usa — se a API tivesse o
+    seu, os dois divergiriam e o endpoint voltaria a anunciar valor que o filtro
+    rejeita. A aba Relatórios continua consumindo `vocabulario`, que é por filtro
+    e traz a contagem do rótulo.
+    """
+    lido = vocabulario(conexao)
+    return {
+        dominio: sorted({valor for filtro in filtros for valor in lido.get(filtro, {})})
+        for dominio, filtros in DOMINIOS_DE_FILTRO.items()
+    }
 
 
 # --------------------------------------------------------------------------

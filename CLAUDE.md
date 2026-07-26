@@ -12,7 +12,7 @@ técnico.
 
 ## Estrutura de arquivos
 
-Itens marcados com **(7)**, **(8)** e **(9)** ainda não existem — entram nas specs
+Itens marcados com **(9)** ainda não existem — entram nas specs
 correspondentes.
 
 ```
@@ -28,11 +28,11 @@ Bestiario_dEd_python/
 │   ├── excecoes.py       # Erros de domínio (dimensão/filtro inválido)
 │   ├── relatorios.py     # Relatórios do terminal — delegam a consultas.py
 │   └── modelos.py        # Entidades do domínio (placeholder até a Spec 3)
-├── api/                  # (8) Superfície JSON — FastAPI, sem SQL próprio
+├── api/                  # Superfície JSON — FastAPI, sem SQL próprio
 ├── web/                  # (9) Superfície HTML — FastAPI + Jinja2
 │   ├── templates/
 │   └── static/
-├── openapi.yaml          # (8) Contrato da API, comparado ao gerado pelo código
+├── openapi.yaml          # Contrato da API, comparado ao gerado pelo código
 ├── tests/                # Testes pytest espelhando o pacote
 ├── pyproject.toml        # Projeto e dependências gerenciados por uv
 ├── bestiario_combate.db  # Banco SQLite com os dados já sincronizados
@@ -50,7 +50,7 @@ camada de consulta não sabe se quem pergunta é um navegador ou um script.
 - **requests** — chamadas HTTP para a API Open5e
 - **pandas** — manipulação de dados para relatórios
 - **tabulate** — formatação de tabelas no terminal
-- **FastAPI + uvicorn** — (8/9) servidor da API JSON e das páginas
+- **FastAPI + uvicorn** — servidor da API JSON; (9) também servirá as páginas
 - **Jinja2** — (9) templates HTML renderizados no servidor
 - **API externa**: `https://api.open5e.com/v2/creatures/` (paginada, sem auth), fixada no documento SRD 2014 via `document__key=srd-2014`
 
@@ -177,9 +177,10 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
 - [x] ~~**Relatórios limitados ao schema antigo**~~ — **resolvido na Spec 6**:
   baseline reescrito para o schema v2 + 4 relatórios ricos (por ambiente, comparação
   entre tipos, imunidade/resistência a dano, condições impostas).
-- [ ] **Sem front-end e sem API HTTP**: a interface é 100% terminal. Especificado
-  no plano das Specs 7-9 (camada de consulta → API JSON → site), com a tradução
-  PT-BR empurrada para a Spec 10. Desenho aprovado em esboço estático — ver Sessão 6.
+- [ ] **Sem front-end** — a **API HTTP existe** desde a Spec 8 (`/api/v1/`, 6
+  endpoints, erros em RFC 7807, `/docs` navegável e teste de contrato barrando
+  divergência com o `openapi.yaml`). Falta o site, que é a Spec 9; a tradução PT-BR
+  segue empurrada para a Spec 10. Desenho aprovado em esboço estático — ver Sessão 6.
 - [x] ~~**SQL espalhado**~~ — **resolvido nas Specs 7b e 7c**: `consultas.py` é o
   único lugar do projeto que lê o banco. Os 7 relatórios e as opções 2 e 3 do menu
   delegam a ele, e `consultar_por_tipo`/`consultar_por_cr` deixaram de existir.
@@ -231,8 +232,11 @@ regra de camadas do CLAUDE.md global: dados → lógica → apresentação.
    item "SQL espalhado"; a 7c removeu `consultar_por_tipo`/`consultar_por_cr` de
    `banco.py`, que voltou a ter responsabilidade única. **Spec 7 fechada** —
    `consultas.py` é o único lugar do projeto que lê o banco.
-8. **API JSON** (`api/`) — recursos em `/api/v1/`, erros em RFC 7807, `openapi.yaml`
-   commitado e um teste de contrato barrando divergência com o que o FastAPI gera.
+8. **API JSON** (`api/`) — **concluída em 2026-07-26**. Seis endpoints em `/api/v1/`,
+   erros em RFC 7807, `/docs` na raiz e teste de contrato comparando caminhos,
+   parâmetros, campos **e status codes** contra o `openapi.yaml`. `api/erros.py`
+   expõe `registrar_tratadores(app)`, que a 9a chamará de `web/app.py`: incluir o
+   roteador leva as rotas, não os tratadores.
 9. **Site** (`web/`) — três abas (Relatórios, Pesquisar, Todos os monstros),
    HTML renderizado no servidor, visual imitando o livro oficial.
 10. **Tradução PT-BR** — primeira spec a exigir segredo (`.env` + chave). Banco e
@@ -349,11 +353,14 @@ python main.py
 # Só os relatórios (standalone)
 python -m bestiario.relatorios
 
-# Servidor — site e API juntos (a partir das Specs 8-9)
-uv run uvicorn web.app:app --reload
-#   site .............. http://127.0.0.1:8000/
+# Só a API (Spec 8, já existe)
+uv run uvicorn api.app:app --reload
 #   API ............... http://127.0.0.1:8000/api/v1/monstros
 #   documentação ...... http://127.0.0.1:8000/docs
+
+# Servidor — site e API juntos (a partir da Spec 9a)
+uv run uvicorn web.app:app --reload
+#   site .............. http://127.0.0.1:8000/
 ```
 
 ## Setup do ambiente
@@ -369,10 +376,12 @@ uv add requests>=2.32,<3.0 pandas>=2.2,<3.0 tabulate>=0.9,<1.0
 uv add --dev pytest>=8.0,<9.0
 ```
 
-**Dependências das Specs 8-9** (rodar quando a spec chegar, não antes):
+**Instaladas na Spec 8:** `fastapi>=0.115,<1.0` e `uvicorn>=0.32,<1.0` de produção;
+`httpx>=0.27,<1.0` e `pyyaml>=6.0,<7.0` de desenvolvimento.
+
+**Falta só a Spec 9a:**
 ```bash
-uv add fastapi>=0.115,<1.0 uvicorn>=0.32,<1.0 jinja2>=3.1,<4.0
-uv add --dev httpx>=0.27,<1.0 pyyaml>=6.0,<7.0
+uv add jinja2>=3.1,<4.0
 ```
 `httpx` é exigida pelo `TestClient` do FastAPI; `pyyaml` serve ao teste de contrato,
 que lê o `openapi.yaml` para compará-lo com o esquema gerado pelo código. Ambas são
@@ -401,7 +410,8 @@ a exigir chave é a **Spec 10** (tradução PT-BR), e é lá que o `.env` nasce.
   as três deps de produção são necessárias desde o início.
 - Specs 2-7 não introduzem dependências novas (SQLite é stdlib, e a camada de
   consulta da Spec 7 é Python puro sobre `sqlite3` + pandas, já presentes).
-- Specs 8-9: `fastapi`, `uvicorn`, `jinja2` de produção; `httpx` e `pyyaml` de teste.
+- Spec 8 (instaladas): `fastapi` e `uvicorn` de produção; `httpx` e `pyyaml` de teste.
+- Spec 9a: `jinja2` de produção.
 - Spec 10 (tradução): cliente do modelo + `pydantic-settings` ou `python-dotenv`.
 
 **CI — `.github/workflows/tests.yml`:**

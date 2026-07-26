@@ -77,7 +77,11 @@ Entrega a aba de busca e comparação: o campo que sugere nomes consumindo a API
 - [ ] Teste confirma que o selo de imunidade a fogo aponta para `/relatorios` com `imune_a=fire` **e `saida=monstros`**.
 - [ ] Teste confirma que `?modo=completa` com mais de 30 monstros exibe o aviso de volume.
 - [ ] Teste confirma que a busca funciona sem JavaScript: envio do formulário responde 200 com o monstro fixado.
-- [ ] Busca por `SELECT`, `execute` e `sqlite3` em `web/` não encontra ocorrência.
+- [ ] Busca por `.execute(`, `.executemany(`, `SELECT `, `read_sql` e `.cursor(` em
+      `web/` não encontra ocorrência, e `sqlite3.connect` também não. O critério mira
+      **execução** e abertura de conexão, não a palavra `sqlite3`: o type hint
+      `sqlite3.Connection` é documentação e deve continuar permitido. Corrigido em
+      2026-07-26, depois de o critério antigo custar o type hint na Spec 8.
 - [ ] Com o servidor no ar, digitar no campo de busca dispara chamada a `/api/v1/monstros?nome=` e exibe sugestões.
 
 ## Módulos afetados

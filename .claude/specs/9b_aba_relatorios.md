@@ -73,7 +73,11 @@ Entrega a aba de análises: os filtros nomeados, a escolha única entre ver a li
 - [ ] Teste confirma que `?resiste_a=fogo` responde 200 com aviso de valor não reconhecido, e não 500.
 - [ ] Teste confirma que clicar num preset devolve o formulário com aqueles parâmetros marcados.
 - [ ] Teste confirma que o botão de mandar para Pesquisar gera link com os **filtros**, não com nomes de monstro.
-- [ ] Busca por `SELECT`, `execute` e `sqlite3` em `web/` não encontra ocorrência.
+- [ ] Busca por `.execute(`, `.executemany(`, `SELECT `, `read_sql` e `.cursor(` em
+      `web/` não encontra ocorrência, e `sqlite3.connect` também não. O critério mira
+      **execução** e abertura de conexão, não a palavra `sqlite3`: o type hint
+      `sqlite3.Connection` é documentação e deve continuar permitido. Corrigido em
+      2026-07-26, depois de o critério antigo custar o type hint na Spec 8.
 
 ## Módulos afetados
 

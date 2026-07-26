@@ -40,6 +40,7 @@ Expõe o bestiário como API HTTP de leitura, implementando o `openapi.yaml` já
 - Quando `por` está ausente em `/comparacoes`, responde **422** — é o único parâmetro **de consulta** obrigatório da API (o `nome` do caminho de `/monstros/{nome}` também é obrigatório).
 - Quando chega `GET /api/v1/resumo`, responde 200 com uma linha só, mesmo que nenhum monstro atenda aos filtros (nesse caso, contagem zero e médias nulas).
 - Quando chega `GET /api/v1/vocabulario`, responde 200 com as listas de valores aceitos, lidas do banco. O núcleo devolve **uma entrada por filtro, com contagem**; a rota **remapeia** para as seis chaves do schema `Vocabulario` (`tipos`, `tamanhos`, `alinhamentos`, `ambientes`, `tipos_dano`, `condicoes`) e descarta as contagens. Remapear dicionário não é escrever SQL — a regra de camadas continua valendo. Decisão do usuário em 2026-07-26.
+- **O agrupamento mora no núcleo, não na rota.** A rota chama `vocabulario_por_dominio`, e não funde as entradas por conta própria: é o mesmo agrupamento que a validação de filtro usa, e tê-lo em dois lugares faria o endpoint anunciar um recorte enquanto o filtro cobra outro. Foi exatamente esse o defeito achado na revisão de código de 2026-07-26 — `imune_a=radiant` respondia 422 com `radiant` anunciado em `tipos_dano`.
 
 ### Filtros
 
@@ -92,6 +93,18 @@ Nenhuma dessas regras é implementada na rota: todas vêm prontas do núcleo. Es
 - [ ] Teste de contrato confirma que **todo status code prometido** por cada operação existe no gerado — incluindo o `default` das seis e o `404` de `/monstros/{nome}`.
 - [ ] Teste confirma que `/ataques` **não** aceita `sentido`: a ordenação é sempre decrescente.
 - [ ] Teste confirma que `GET /api/v1/vocabulario` responde com exatamente as seis chaves do schema `Vocabulario`, sem contagem, apesar de o núcleo devolver onze entradas com contagem.
+- [ ] Teste confirma que **todo valor anunciado em `/vocabulario` é aceito por todos os
+      filtros do domínio dele** — a invariante que o endpoint existe para garantir.
+- [ ] Teste confirma que banco **ausente** (não só vazio) responde 503 em
+      `application/problem+json`, e não 500 cru. O `.db` está fora do git, então
+      clone novo é o caminho mais provável de todos.
+- [ ] Teste confirma que o campo `type` do RFC 7807 é ASCII — o contrato o declara
+      `uri-reference`, e acento sem percent-encoding não é URI válida.
+- [ ] Teste confirma que `sentido` inválido responde 422 em vez de virar `crescente`
+      em silêncio, e que `ordenar_por` inválido **continua** caindo no padrão sem
+      erro: o contrato dá tolerância explícita a um e não ao outro.
+- [ ] Teste confirma que o esquema gerado carrega o `enum` de `ordenar_por`, apesar de
+      o parâmetro ser tolerante — documentado sem ser validado.
 - [ ] Teste confirma `GET /api/v1/monstros` responde 200 e o corpo tem `total`, `limite`, `deslocamento` e `itens`.
 - [ ] Teste confirma `GET /api/v1/monstros/Adult Red Dragon` responde 200 e traz ações aninhadas com ataques dentro.
 - [ ] Teste confirma que nome inexistente responde 404 com `content-type: application/problem+json`.
@@ -101,7 +114,15 @@ Nenhuma dessas regras é implementada na rota: todas vêm prontas do núcleo. Es
 - [ ] Teste confirma que `desafio_min=20&desafio_max=5` responde 200 com `itens` vazio.
 - [ ] Teste confirma que, com banco sem monstros, `/monstros` responde 503 citando a sincronização.
 - [ ] Teste confirma que os mesmos filtros funcionam nos quatro endpoints que os aceitam.
-- [ ] Teste confirma que nenhuma rota executa SQL: busca por `SELECT`, `execute` e `sqlite3` em `api/` não encontra ocorrência.
+- [ ] Teste confirma que nenhuma rota executa SQL: busca por `.execute(`,
+      `.executemany(`, `SELECT `, `read_sql` e `.cursor(` em `api/` não encontra
+      ocorrência. O critério mira **execução**, não a palavra `sqlite3` — proibir o
+      nome do módulo custaria o type hint `sqlite3.Connection` nos parâmetros de
+      conexão, que é documentação, e faria o teste piorar o código que protege.
+      Corrigido em 2026-07-26, ao implementar.
+- [ ] Teste confirma que `sqlite3.connect` não aparece em `api/`: conexão só chega
+      pela dependência do FastAPI, que é o ponto que o teste substitui e que a
+      Spec 9a reaproveita.
 - [ ] `uv run uvicorn api.app:app` sobe e `/docs` abre a documentação navegável.
 
 ## Módulos afetados
@@ -143,3 +164,6 @@ Nenhuma dessas regras é implementada na rota: todas vêm prontas do núcleo. Es
 - **O que está incompleto** → o item "Sem front-end e sem API HTTP" perde a parte da API; a parte do site continua aberta até a Spec 9.
 - **Setup do ambiente** → mover `fastapi`, `uvicorn`, `httpx` e `pyyaml` de "dependências das Specs 8-9" para instaladas.
 - **Bloco em aberto — Specs 7 a 10** → marcar a 8 como concluída.
+
+---
+**Status:** concluida em 2026-07-26

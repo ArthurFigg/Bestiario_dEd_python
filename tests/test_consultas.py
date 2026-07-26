@@ -11,6 +11,7 @@ import pytest
 
 from bestiario.banco import criar_base_de_dados
 from bestiario.consultas import (
+    DOMINIOS_DE_FILTRO,
     PRESETS,
     abrir_conexao,
     buscar_monstro,
@@ -19,6 +20,7 @@ from bestiario.consultas import (
     montar_consulta,
     resolver_nomes,
     vocabulario,
+    vocabulario_por_dominio,
 )
 from bestiario.excecoes import FiltroDesconhecido, ValorDeFiltroInvalido
 
@@ -565,3 +567,54 @@ def test_abrir_conexao_rejeita_escrita(tmp_path):
     with abrir_conexao(str(caminho)) as con:
         with pytest.raises(sqlite3.OperationalError):
             con.execute("DELETE FROM monstros")
+
+
+# --- vocabulário por domínio -------------------------------------------------
+
+
+def test_valor_de_outro_filtro_do_mesmo_dominio_devolve_vazio_em_vez_de_erro(conexao):
+    # `radiant` é vulnerabilidade do Vampire, nunca imunidade de ninguém. Ainda
+    # assim é um tipo de dano legítimo: "ninguém é imune a radiant" é pergunta
+    # coerente sem resposta, como o intervalo de desafio invertido.
+    assert executar_consulta(conexao, {"imune_a": "radiant"}) == []
+
+
+def test_valor_inexistente_em_qualquer_dominio_continua_levantando(conexao):
+    # `fogo` não é tipo de dano em lugar nenhum — é engano de quem escreveu.
+    with pytest.raises(ValorDeFiltroInvalido):
+        executar_consulta(conexao, {"imune_a": "fogo"})
+
+
+def test_condicao_so_imposta_e_aceita_em_imune_a_condicao(conexao):
+    # `charmed` é imunidade do Vampire e condição imposta pela mordida dele; o
+    # domínio de condições é um só, então os dois filtros aceitam os dois valores.
+    assert executar_consulta(conexao, {"impoe": "charmed"}) != []
+
+
+def test_vocabulario_por_dominio_tem_as_seis_chaves_do_contrato(conexao):
+    assert set(vocabulario_por_dominio(conexao)) == {
+        "tipos",
+        "tamanhos",
+        "alinhamentos",
+        "ambientes",
+        "tipos_dano",
+        "condicoes",
+    }
+
+
+def test_vocabulario_por_dominio_funde_os_tres_filtros_de_dano(conexao):
+    tipos_dano = vocabulario_por_dominio(conexao)["tipos_dano"]
+    assert {"fire", "necrotic", "radiant"} <= set(tipos_dano)
+
+
+def test_todo_valor_anunciado_no_dominio_e_aceito_por_todos_os_filtros_dele(conexao):
+    """A invariante que o endpoint `/vocabulario` existe para garantir.
+
+    Se um valor aparece em `tipos_dano`, os três filtros de dano têm de aceitá-lo
+    — senão o endpoint que existe para o consumidor não adivinhar passa a mentir.
+    """
+    por_dominio = vocabulario_por_dominio(conexao)
+    for dominio, filtros in DOMINIOS_DE_FILTRO.items():
+        for valor in por_dominio[dominio]:
+            for filtro in filtros:
+                executar_consulta(conexao, {filtro: valor})

@@ -69,7 +69,11 @@ Levanta o site: a moldura com as três abas e o botão de exibição, a identida
 - [ ] Teste confirma que `?modo=completa` aparece nos links das outras abas — o modo viaja entre abas.
 - [ ] Teste confirma que o rodapé contém link para `/docs`.
 - [ ] Teste confirma que, com banco sem monstros, `/monstros` responde 200 com a mensagem de base não sincronizada, e **não** com tabela vazia.
-- [ ] Busca por `SELECT`, `execute` e `sqlite3` em `web/` não encontra ocorrência.
+- [ ] Busca por `.execute(`, `.executemany(`, `SELECT `, `read_sql` e `.cursor(` em
+      `web/` não encontra ocorrência, e `sqlite3.connect` também não. O critério mira
+      **execução** e abertura de conexão, não a palavra `sqlite3`: o type hint
+      `sqlite3.Connection` é documentação e deve continuar permitido. Corrigido em
+      2026-07-26, depois de o critério antigo custar o type hint na Spec 8.
 - [ ] Busca por `http://` e `https://` em `web/static/estilo.css` não encontra ocorrência — nenhuma fonte ou recurso vem de fora.
 - [ ] `web/static/estilo.css` contém `@font-face` com `src: url(data:font/woff2;base64,` para **Cinzel** e para **EB Garamond**. Sem este critério, um CSS vazio ou reescrito do zero passaria no critério anterior — e é exatamente o artefato sob risco de perda.
 - [ ] `uv run uvicorn web.app:app` sobe, `/monstros` abre no navegador e `/docs` também.
