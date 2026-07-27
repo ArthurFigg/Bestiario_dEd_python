@@ -70,7 +70,28 @@ def _monstro(cursor, nome, **campos):
 def semear_bestiario(conexao):
     """Conjunto pequeno e conhecido, montado para exercitar cada regra da API."""
     c = conexao.cursor()
-    _monstro(c, "Adult Red Dragon", pontos_vida=256, nivel_desafio=17.0)
+    # Atributos e testes do SRD: For não é proficiente (save 8 == modificador
+    # de 27), os outros quatro são. Fiel de propósito — monstro com o nome do
+    # SRD e números inventados é armadilha para quem ler o teste depois.
+    _monstro(
+        c,
+        "Adult Red Dragon",
+        pontos_vida=256,
+        nivel_desafio=17.0,
+        classe_armadura=19,
+        forca=27,
+        forca_save=8,
+        destreza=10,
+        destreza_save=6,
+        constituicao=25,
+        constituicao_save=13,
+        inteligencia=16,
+        inteligencia_save=3,
+        sabedoria=13,
+        sabedoria_save=7,
+        carisma=21,
+        carisma_save=11,
+    )
     _monstro(
         c,
         "Adult Blue Dragon",
@@ -185,6 +206,25 @@ def semear_bestiario(conexao):
         "INSERT INTO efeitos (acao_id, cd_resistencia, atributo_resistencia, "
         "condicao, area_tipo, area_tamanho) VALUES (?,?,?,?,?,?)",
         (mordida_vampiro, 18, "constitution", "charmed", None, None),
+    )
+    # Ação lendária: a ficha separa por categoria, e sem uma delas o teste da
+    # seção própria não teria o que exercitar.
+    c.execute(
+        "INSERT INTO acoes (monstro_nome, categoria, nome_acao, descricao) "
+        "VALUES (?,?,?,?)",
+        ("Adult Red Dragon", "legendary_action", "Wing Attack", "..."),
+    )
+    asa = c.lastrowid
+    # Duas condições na mesma ação viram duas linhas em `efeitos`, repetindo CD
+    # e área — é assim que a Spec 5 grava, e a ficha tem de exibir um selo de CD
+    # e um de área, não dois de cada.
+    c.executemany(
+        "INSERT INTO efeitos (acao_id, cd_resistencia, atributo_resistencia, "
+        "condicao, area_tipo, area_tamanho) VALUES (?,?,?,?,?,?)",
+        [
+            (asa, 19, "dexterity", "prone", "cone", 15),
+            (asa, 19, "dexterity", "grappled", "cone", 15),
+        ],
     )
     conexao.commit()
 

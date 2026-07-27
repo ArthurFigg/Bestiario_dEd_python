@@ -352,3 +352,185 @@ def test_cabecalho_da_comparacao_nomeia_a_dimensao(cliente_web):
     corpo = cliente_web.get("/relatorios?por=ambiente").text
     assert "<th>\n                  Ambiente" in corpo or ">Ambiente" in corpo
     assert ">Valor<" not in corpo
+
+
+# --- aba Pesquisar (Spec 9c) --------------------------------------------------
+
+
+def test_fixados_renderiza_uma_ficha_por_nome(cliente_web):
+    resposta = cliente_web.get("/pesquisar?fixados=Adult Red Dragon,Vampire")
+    assert resposta.status_code == 200
+    assert resposta.text.count('class="ficha') == 2
+
+
+def test_recorte_por_filtro_renderiza_todos_os_do_filtro(cliente_web):
+    """O caminho vindo do relatório não depende de lista de nomes."""
+    corpo = cliente_web.get("/pesquisar?tipo=dragon").text
+    assert corpo.count('class="ficha') == 2
+
+
+def test_nomes_e_filtros_na_mesma_url_se_unem_sem_repetir(cliente_web):
+    # Adult Red Dragon é dragão e está em `fixados`: aparece uma vez só.
+    corpo = cliente_web.get("/pesquisar?fixados=Adult Red Dragon&tipo=dragon").text
+    assert corpo.count("<h3>Adult Red Dragon</h3>") == 1
+
+
+def test_nome_inexistente_e_ignorado_e_avisado(cliente_web):
+    corpo = cliente_web.get("/pesquisar?fixados=Vampire,Tarrasque").text
+    assert "Tarrasque" in corpo and "não encontrado" in corpo
+    assert corpo.count('class="ficha') == 1
+
+
+def test_tela_sem_monstro_convida_a_pesquisar(cliente_web):
+    assert "Pesquise um monstro" in cliente_web.get("/pesquisar").text
+
+
+def test_modo_completa_traz_blocos_que_a_resumida_omite(cliente_web):
+    completa = cliente_web.get("/pesquisar?fixados=Adult Red Dragon&modo=completa").text
+    resumida = cliente_web.get("/pesquisar?fixados=Adult Red Dragon").text
+    assert "Idiomas" in completa and "Idiomas" not in resumida
+
+
+def test_ficha_traz_os_quatro_saves_proficientes_e_nao_os_seis(cliente_web):
+    corpo = cliente_web.get("/pesquisar?fixados=Adult Red Dragon&modo=completa").text
+    bloco = corpo[corpo.find("<b>Resistências</b>") :][:120]
+    assert "destreza" in bloco and "forca" not in bloco
+
+
+def test_ficha_omite_deslocamento_zero_e_nulo(cliente_web):
+    corpo = cliente_web.get("/pesquisar?fixados=Adult Red Dragon&modo=completa").text
+    bloco = corpo[corpo.find("<b>Deslocamento</b>") :][:160]
+    assert "natacao" not in bloco and "escalada" not in bloco
+
+
+def test_ataque_exibe_a_media_junto_do_dado(cliente_web):
+    corpo = cliente_web.get("/pesquisar?fixados=Adult Red Dragon&modo=completa").text
+    assert "2d10+8" in corpo and "(~19.0)" in corpo
+
+
+def test_acao_com_cd_e_sem_condicao_nao_exibe_selo_de_condicao(cliente_web):
+    """Fire Breath: CD 21 e cone de 60 pés, condição nula de propósito."""
+    corpo = cliente_web.get("/pesquisar?fixados=Adult Red Dragon&modo=completa").text
+    bloco = corpo[corpo.find("<b>Fire Breath.</b>") :][:400]
+    assert "CD 21 dexterity" in bloco and "cone 60 ft." in bloco
+    assert "impoe=" not in bloco
+
+
+def test_acao_com_duas_condicoes_nao_repete_a_cd(cliente_web):
+    """Um selo de CD, um de área, e um por condição — repetir a CD faria
+    parecer que são saves diferentes."""
+    corpo = cliente_web.get("/pesquisar?fixados=Adult Red Dragon&modo=completa").text
+    bloco = corpo[corpo.find("<b>Wing Attack.</b>") :][:600]
+    assert bloco.count("CD 19 dexterity") == 1
+    assert bloco.count("cone 15 ft.") == 1
+    assert "prone" in bloco and "grappled" in bloco
+
+
+def test_ficha_separa_as_acoes_por_categoria(cliente_web):
+    corpo = cliente_web.get("/pesquisar?fixados=Adult Red Dragon&modo=completa").text
+    assert "Ações lendárias" in corpo
+
+
+def test_selo_de_imunidade_a_fogo_leva_ao_relatorio_como_lista(cliente_web):
+    """Sem `saida=monstros` o selo cairia numa comparação por tipo."""
+    corpo = cliente_web.get("/pesquisar?fixados=Adult Red Dragon&modo=completa").text
+    assert "/relatorios?imune_a=fire&amp;saida=monstros" in corpo
+
+
+def test_selos_de_vulnerabilidade_e_imunidade_a_condicao_tem_destino(cliente_web):
+    corpo = cliente_web.get("/pesquisar?fixados=Vampire&modo=completa").text
+    assert "vulneravel_a=radiant" in corpo
+    assert "imune_a_condicao=charmed" in corpo
+
+
+def test_selo_de_condicao_imposta_usa_o_filtro_impoe(cliente_web):
+    corpo = cliente_web.get("/pesquisar?fixados=Adult Red Dragon&modo=completa").text
+    assert "impoe=prone" in corpo
+
+
+def test_combinar_qualquer_vindo_do_relatorio_e_respeitado(cliente_web):
+    # `tipo=undead` OU `imune_a=fire` traz o Vampire e o dragão; com "todos",
+    # nenhum atenderia aos dois ao mesmo tempo.
+    corpo = cliente_web.get(
+        "/pesquisar?tipo=undead&imune_a=fire&combinar=qualquer"
+    ).text
+    assert corpo.count('class="ficha') == 2
+
+
+def test_cada_ficha_traz_link_para_o_json_dela(cliente_web):
+    """É o que impede a API de ficar decorativa, junto com a busca por fetch."""
+    corpo = cliente_web.get("/pesquisar?fixados=Vampire").text
+    assert "/api/v1/monstros/Vampire" in corpo
+
+
+def test_modo_completa_com_muitas_fichas_avisa_sobre_o_volume(cliente_web, monkeypatch):
+    # Limiar rebaixado em vez de semear 30 monstros: a fixture é pequena de
+    # propósito, e o que se testa é a regra, não o número.
+    from web import rotas
+
+    monkeypatch.setattr(rotas, "LIMITE_DE_AVISO_DE_VOLUME", 1)
+    corpo = cliente_web.get("/pesquisar?tipo=dragon&modo=completa").text
+    assert "navegador fica lento" in corpo
+
+
+def test_busca_sem_javascript_funciona_como_formulario(cliente_web):
+    corpo = cliente_web.get("/pesquisar?nome=vamp").text
+    assert corpo.count('class="ficha') == 1
+
+
+def test_link_do_nome_na_aba_todos_preserva_o_modo(cliente_web):
+    corpo = cliente_web.get("/monstros?modo=completa").text
+    assert "modo=completa" in corpo and "fixados=" in corpo
+
+
+def test_modo_completa_na_aba_todos_abre_so_a_linha_pedida(cliente_web):
+    """325 fichas empilhadas dariam uma página que ninguém lê."""
+    corpo = cliente_web.get("/monstros?modo=completa&aberto=Goblin").text
+    assert corpo.count('class="ficha') == 1
+    assert "<h3>Goblin</h3>" in corpo
+
+
+def test_modo_resumida_na_aba_todos_nao_abre_ficha_nenhuma(cliente_web):
+    corpo = cliente_web.get("/monstros?modo=resumida&aberto=Goblin").text
+    assert 'class="ficha' not in corpo
+
+
+def test_aba_todos_so_oferece_abrir_ficha_no_modo_completa(cliente_web):
+    assert "ver ficha" in cliente_web.get("/monstros?modo=completa").text
+    assert "ver ficha" not in cliente_web.get("/monstros").text
+
+
+def test_abrir_ficha_preserva_a_ordenacao_escolhida(cliente_web):
+    corpo = cliente_web.get(
+        "/monstros?modo=completa&ordenar_por=pontos_vida&sentido=decrescente"
+    ).text
+    assert "ordenar_por=pontos_vida" in corpo and "sentido=decrescente" in corpo
+
+
+def test_ficha_aberta_reusa_o_mesmo_parcial_da_aba_pesquisar(cliente_web):
+    # Mesmo bloco nas duas abas: o `_ficha.html` existe num lugar só.
+    todos = cliente_web.get("/monstros?modo=completa&aberto=Vampire").text
+    pesquisar = cliente_web.get("/pesquisar?fixados=Vampire&modo=completa").text
+    assert "<h3>Vampire</h3>" in todos and "<h3>Vampire</h3>" in pesquisar
+    assert "/api/v1/monstros/Vampire" in todos
+
+
+def test_ficha_completa_recebe_a_classe_que_revela_o_bloco(cliente_web):
+    """O CSS esconde `.so-completa` até um ancestral ter `modo-completa`.
+
+    Sem a classe o bloco ia para o HTML e ficava `display: none` — os testes de
+    conteúdo passavam e a tela não mudava. Testar a presença do texto não basta:
+    é preciso testar o mecanismo que o torna visível.
+    """
+    corpo = cliente_web.get("/pesquisar?fixados=Vampire&modo=completa").text
+    assert 'class="ficha modo-completa"' in corpo
+
+
+def test_ficha_resumida_nao_recebe_a_classe(cliente_web):
+    corpo = cliente_web.get("/pesquisar?fixados=Vampire").text
+    assert 'class="ficha"' in corpo and "modo-completa" not in corpo
+
+
+def test_ficha_aberta_na_aba_todos_tambem_recebe_a_classe(cliente_web):
+    corpo = cliente_web.get("/monstros?modo=completa&aberto=Vampire").text
+    assert 'class="ficha modo-completa"' in corpo

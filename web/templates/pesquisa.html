@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block titulo %}Pesquisar — Bestiário de D&amp;D 5e{% endblock %}
+
+{% block conteudo %}
+<section class="painel" id="p-pesquisa">
+
+  {# Sem JavaScript o campo continua funcionando como formulário comum: a busca
+     incremental é conveniência, não requisito. #}
+  <form class="busca" method="get" action="/pesquisar">
+    <input type="hidden" name="modo" value="{{ modo }}">
+    <input type="hidden" name="fixados" value="{{ request.query_params.get('fixados', '') }}">
+    <input name="nome" value="{{ nome }}" autocomplete="off"
+           list="sugestoes-de-monstro"
+           placeholder="Pesquisar monstro pelo nome…"
+           aria-label="Pesquisar monstro pelo nome">
+    <datalist id="sugestoes-de-monstro"></datalist>
+  </form>
+
+  {% for aviso in avisos %}
+  <div class="aviso">{{ aviso }}</div>
+  {% endfor %}
+
+  <div class="fixadas" id="fixadas">
+    {% if not fichas %}
+    <p class="nota">
+      Pesquise um monstro pelo nome para trazê-lo para cá, ou monte um recorte
+      na aba Relatórios e mande o resultado para esta tela. As fichas ficam lado
+      a lado para comparação.
+    </p>
+    {% else %}
+    {% for ficha in fichas %}
+    {% include "_ficha.html" %}
+    {% endfor %}
+    {% endif %}
+  </div>
+</section>
+
+<script src="/static/busca.js" defer></script>
+{% endblock %}

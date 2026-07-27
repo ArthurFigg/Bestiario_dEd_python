@@ -29,18 +29,37 @@
               <a href="{{ coluna.url }}">{{ coluna.rotulo }}</a>
             </th>
             {% endfor %}
+            {% if modo == 'completa' %}<th></th>{% endif %}
           </tr>
         </thead>
         <tbody>
           {% for monstro in monstros %}
           <tr>
-            <td><a href="/pesquisar?fixados={{ monstro.nome | urlencode }}">{{ monstro.nome }}</a></td>
+            {# O link leva o `modo` junto: quem está em Completa não volta para
+               Resumida ao clicar num nome. #}
+            <td>
+              <a href="/pesquisar?fixados={{ monstro.nome | urlencode }}&amp;modo={{ modo }}">
+                {{ monstro.nome }}</a>
+            </td>
             <td>{{ monstro.tipo }}</td>
             <td>{{ monstro.tamanho }}</td>
             <td class="num">{{ monstro.desafio }}</td>
             <td class="num">{{ monstro.pontos_vida }}</td>
             <td class="num">{{ monstro.classe_armadura }}</td>
+            {# Só no modo Completa: abrir as 325 fichas daria uma página que
+               ninguém lê. O nome continua levando para a aba Pesquisar. #}
+            {% if modo == 'completa' %}
+            <td>
+              <a href="{{ url_de_abertura(monstro.nome) }}">
+                {{ 'fechar' if monstro.nome == aberto else 'ver ficha' }}</a>
+            </td>
+            {% endif %}
           </tr>
+          {% if modo == 'completa' and monstro.nome == aberto and ficha %}
+          <tr>
+            <td colspan="7">{% include "_ficha.html" %}</td>
+          </tr>
+          {% endif %}
           {% endfor %}
         </tbody>
       </table>

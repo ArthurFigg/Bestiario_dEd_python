@@ -138,6 +138,14 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
   de origem `[local]`/`[API]` na saída (Spec 6). Desde a **Spec 7c** quem responde a
   parte local é o núcleo (`consultas.py`), não `banco.py`; a política não mudou.
   Entrada vazia não consulta nada — nem o núcleo, nem a API.
+- [x] **Aba Pesquisar** (Spec 9c): fichas acumuladas lado a lado, sem limite de
+  quantidade. O bloco de estatísticas (`_ficha.html`) é compartilhado com a aba
+  Todos, que abre **uma** linha por vez no modo Completa. **Navegação nos dois
+  sentidos**: o selo da ficha (`imune a fire`) leva ao relatório já filtrado, e o
+  resultado do relatório vem para cá como filtros — nunca como lista de nomes, que
+  estouraria a URL. A API tem dois consumidores dentro do próprio projeto: a busca
+  incremental por `fetch` em `/api/v1/monstros?nome=` e o link JSON de cada ficha.
+  Sem JavaScript o campo continua funcionando como formulário comum.
 - [x] **Aba Relatórios** (Spec 9b): construtor de análises por cliques, com os onze
   filtros nomeados em português e opções vindas do vocabulário do banco (com a
   contagem ao lado). **Um cartão, uma escolha** — ver os monstros ou comparar por
@@ -184,13 +192,10 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
 - [x] ~~**Relatórios limitados ao schema antigo**~~ — **resolvido na Spec 6**:
   baseline reescrito para o schema v2 + 4 relatórios ricos (por ambiente, comparação
   entre tipos, imunidade/resistência a dano, condições impostas).
-- [ ] **Front-end parcial** — a **API HTTP existe** desde a Spec 8 (`/api/v1/`, 6
-  endpoints, erros em RFC 7807, `/docs` navegável e teste de contrato barrando
-  divergência com o `openapi.yaml`). A **Spec 9a** levantou a moldura do site
-  (três abas, alternador Resumida/Completa, identidade visual portada do esboço
-  aprovado) e a aba "Todos os monstros" de ponta a ponta. Faltam as abas
-  Relatórios (Spec 9b) e Pesquisar (Spec 9c); a tradução PT-BR segue empurrada
-  para a Spec 10.
+- [x] ~~**Sem front-end e sem API HTTP**~~ — **resolvido nas Specs 8 e 9**: a API
+  vive em `/api/v1/` com `/docs` navegável, e o site tem as três abas de pé. Só a
+  tradução PT-BR segue aberta, na Spec 10 — banco e terminal continuam em inglês
+  de propósito.
 - [ ] **Média de dano ignora o dano secundário** — decisão de 2026-07-26: deixar
   como está. `_SUB_DANO` em `consultas.py` agrega só `dano_medio`, então o Bite do
   Adult Red Dragon conta como 19 e não como 26 (2d10+8 perfurante mais 2d6 de
@@ -202,7 +207,7 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
 - [x] ~~**SQL espalhado**~~ — **resolvido nas Specs 7b e 7c**: `consultas.py` é o
   único lugar do projeto que lê o banco. Os 7 relatórios e as opções 2 e 3 do menu
   delegam a ele, e `consultar_por_tipo`/`consultar_por_cr` deixaram de existir.
-- [x] ~~**Sem testes automatizados**~~ — **resolvido**: suíte pytest com 279 testes
+- [x] ~~**Sem testes automatizados**~~ — **resolvido**: suíte pytest com 307 testes
   espelhando o pacote (cliente API, banco/ingestão, extração, derivações puras,
   camada de consulta, relatórios e orquestração dos filtros); mocks só na fronteira
   HTTP, e a camada de consulta testada contra SQLite em memória.
@@ -255,8 +260,8 @@ regra de camadas do CLAUDE.md global: dados → lógica → apresentação.
    parâmetros, campos **e status codes** contra o `openapi.yaml`. `api/erros.py`
    expõe `registrar_tratadores(app)`, chamada também por `web/app.py`: incluir o
    roteador leva as rotas, não os tratadores.
-9. **Site** (`web/`) — três abas. **9b (aba Relatórios) concluída em 2026-07-26.**
-   Três abas (Relatórios, Pesquisar, Todos os monstros),
+9. **Site** (`web/`) — **concluído em 2026-07-26** (9a, 9b e 9c). Três abas
+   (Relatórios, Pesquisar, Todos os monstros),
    HTML renderizado no servidor, visual imitando o livro oficial. **9a concluída
    em 2026-07-26**: moldura (`base.html`), identidade visual portada do esboço
    aprovado (`estilo.css`, fontes Cinzel e EB Garamond em base64) e a aba "Todos
@@ -265,8 +270,12 @@ regra de camadas do CLAUDE.md global: dados → lógica → apresentação.
    defasado** — os três têm a mesma cura, então dão a mesma tela.
    `web.app:app` inclui o roteador
    da Spec 8 sob `/api/v1` e registra os mesmos tratadores de erro, então
-   `/docs` e os erros RFC 7807 valem também pela entrada do site. Faltam as
-   abas Relatórios (9b) e Pesquisar (9c).
+   `/docs` e os erros RFC 7807 valem também pela entrada do site.
+   **9c**: a aba Pesquisar, com fichas acumuladas sem limite, `_ficha.html`
+   compartilhado com a aba Todos (que abre uma linha por vez no modo Completa),
+   navegação nos dois sentidos — o selo da ficha leva ao relatório filtrado e o
+   resultado do relatório vem para cá como filtros —, e a API consumida pela
+   busca incremental e pelo link JSON de cada ficha.
 10. **Tradução PT-BR** — primeira spec a exigir segredo (`.env` + chave). Banco e
     terminal continuam em inglês; a tradução é camada de apresentação.
 
@@ -605,7 +614,8 @@ registrada na seção "O que já funciona" — banco defasado não emite erro.
 
 **Desenho das telas — decidido pelo usuário:**
 1. **Relatórios** — construtor de análises próprias (a mais complexa).
-2. **Pesquisar** — busca que acumula até 3 monstros na tela para comparar.
+2. **Pesquisar** — busca que acumula monstros na tela para comparar. *(O limite
+   de 3 foi eliminado em 2026-07-25: a aba comporta de um a 325.)*
 3. **Todos os monstros** — tabela completa dos 325, ordenável.
 
 Botão global **resumida/completa** por aba, mudando todos os monstros de uma vez.

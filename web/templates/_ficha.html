@@ -1,0 +1,136 @@
+{#
+  Bloco de estatísticas de um monstro. Nasce inteiro aqui, na Spec 9c, e não na
+  9a: as duas precisavam dele e criar nos dois lugares seria dependência
+  circular. A 9a deixou o botão Completa sem efeito na aba Todos até isto
+  existir, e ganhou o include depois.
+
+  Espera `ficha` (de `buscar_monstro`) e `modo` ('resumida' | 'completa').
+#}
+{#
+  `modo-completa` no próprio artigo: o CSS do esboço esconde `.so-completa` por
+  padrão e só a revela sob um ancestral com essa classe — no mockup, quem a
+  punha era o JavaScript da troca de modo. Renderizando no servidor, o bloco ia
+  para o HTML e ficava invisível. A classe entra aqui, e não no `base.html`, que
+  é da 9a.
+#}
+<article class="ficha{% if modo == 'completa' %} modo-completa{% endif %}">
+  <div class="tarja"></div>
+  <div class="miolo">
+    <div>
+      <h3>{{ ficha.nome }}</h3>
+      <p class="subtitulo">
+        {{ ficha.tamanho }} {{ ficha.tipo }}{% if ficha.alinhamento %}, {{ ficha.alinhamento }}{% endif %}
+      </p>
+    </div>
+
+    <div class="cunha"></div>
+    <div class="linhas-base">
+      <div><b>Classe de Armadura</b> {{ ficha.classe_armadura }}</div>
+      <div><b>Pontos de Vida</b> {{ ficha.pontos_vida }}</div>
+      <div><b>Desafio</b> {{ ficha.desafio }}</div>
+    </div>
+
+    <div class="cunha"></div>
+    <dl class="atributos">
+      {% for chave, abreviacao in ficha.atributos_da_ficha %}
+      {% set atributo = ficha.atributos[chave] %}
+      <div>
+        <dt>{{ abreviacao }}</dt>
+        <dd>{{ atributo.valor }}
+          <small>({{ '+' if atributo.modificador >= 0 }}{{ atributo.modificador }})</small>
+        </dd>
+      </div>
+      {% endfor %}
+    </dl>
+
+    {% if modo == 'completa' %}
+    <div class="so-completa">
+      <div class="cunha"></div>
+      <div class="linhas-base">
+        {% if ficha.deslocamento %}
+        <div><b>Deslocamento</b>
+          {%- set partes = [] %}
+          {%- for chave, valor in ficha.deslocamento.items() if chave != 'pode_pairar' %}
+          {%- set _ = partes.append(chave ~ ' ' ~ valor ~ ' ft.') %}
+          {%- endfor %}
+          {{ partes|join(', ') }}{% if ficha.deslocamento.pode_pairar %} (pode pairar){% endif %}
+        </div>
+        {% endif %}
+        {# Só os proficientes: o bloco impresso faz assim, e listar os seis
+           contradiria a fonte. Quem deduz é o núcleo. #}
+        {% if ficha.testes_de_resistencia %}
+        <div><b>Resistências</b>
+          {% for teste in ficha.testes_de_resistencia -%}
+          {{ teste.atributo }} {{ '+' if teste.bonus >= 0 }}{{ teste.bonus }}
+          {%- if not loop.last %}, {% endif %}
+          {%- endfor %}
+        </div>
+        {% endif %}
+        {% if ficha.pericias %}
+        <div><b>Perícias</b>
+          {% for pericia in ficha.pericias -%}
+          {{ pericia.pericia }} {{ '+' if pericia.bonus >= 0 }}{{ pericia.bonus }}
+          {%- if not loop.last %}, {% endif %}
+          {%- endfor %}
+        </div>
+        {% endif %}
+        {% if ficha.sentidos %}
+        <div><b>Sentidos</b>
+          {% for chave, valor in ficha.sentidos.items() -%}
+          {{ chave }} {{ valor }}{% if not loop.last %}, {% endif %}
+          {%- endfor %}
+        </div>
+        {% endif %}
+        {% if ficha.idiomas %}<div><b>Idiomas</b> {{ ficha.idiomas }}</div>{% endif %}
+      </div>
+
+      {# Cada selo leva ao relatório filtrado — é o caminho inverso do botão que
+         traz o recorte do relatório para cá. #}
+      {% if ficha.selos %}
+      <div class="traco-selos">
+        {% for selo in ficha.selos %}
+        <a class="selo" href="{{ selo.url }}">{{ selo.rotulo }}</a>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% for titulo, acoes in ficha.grupos_de_acoes %}
+      <p class="rubrica" style="font-size:19px">{{ titulo }}</p>
+      <div class="cunha"></div>
+      <div class="lista-acoes">
+        {% for acao in acoes %}
+        <p class="acao">
+          <b>{{ acao.nome }}.</b>
+          {% for ataque in acao.ataques %}
+          {%- if ataque.bonus_ataque is not none %}+{{ ataque.bonus_ataque }} ao acerto{% endif %}
+          {%- if ataque.alcance %}, alcance {{ ataque.alcance }} ft.{% endif %}
+          {%- if ataque.dano_dado or ataque.dano_bonus %}
+          <i>Acerto:</i>
+          {{ ataque.dano_dado or '' }}{% if ataque.dano_bonus %}+{{ ataque.dano_bonus }}{% endif %}
+          {{ ataque.dano_tipo or '' }}
+          {%- if ataque.dano_medio is not none %} (~{{ ataque.dano_medio }}){% endif %}
+          {%- if ataque.dano_extra_dado %} + {{ ataque.dano_extra_dado }} {{ ataque.dano_extra_tipo or '' }}
+          {%- if ataque.dano_extra_medio is not none %} (~{{ ataque.dano_extra_medio }}){% endif %}
+          {%- endif %}
+          {%- endif %}
+          {% endfor %}
+          {% if acao.selo_cd %}<span class="selo">{{ acao.selo_cd }}</span>{% endif %}
+          {% if acao.selo_area %}<span class="selo">{{ acao.selo_area }}</span>{% endif %}
+          {% for selo in acao.selos_condicao %}
+          <a class="selo" href="{{ selo.url }}">{{ selo.rotulo }}</a>
+          {% endfor %}
+        </p>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  <div class="tarja pe"></div>
+
+  {# É o que impede a API de ficar decorativa, junto com a busca por fetch.
+     O jogador comum nunca clica; quem clica é quem entende o que é. #}
+  <p class="nota">
+    <a href="/api/v1/monstros/{{ ficha.nome }}">JSON</a>
+  </p>
+</article>

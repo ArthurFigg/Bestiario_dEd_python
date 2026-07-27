@@ -122,3 +122,6 @@ Entrega a aba de busca e comparação: o campo que sugere nomes consumindo a API
 - **O que já funciona** → acrescentar a aba Pesquisar com fichas acumuladas, navegação em dois sentidos entre ficha e relatório, e a API consumida pela própria busca do site.
 - **Bloco em aberto — Specs 7 a 10** → marcar 9c como concluída e o bloco do front como fechado; sobra a Spec 10 (tradução).
 - **Sobre o desenvolvedor / Contexto para decisões futuras** → o projeto deixa de ser "interface 100% terminal".
+
+---
+**Status:** concluida em 2026-07-26

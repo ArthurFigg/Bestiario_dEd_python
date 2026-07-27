@@ -88,7 +88,8 @@ def test_ficha_omite_deslocamento_zero_ou_nulo(cliente_api):
 def test_ficha_traz_so_os_testes_de_resistencia_proficientes(cliente_api):
     corpo = cliente_api.get(_url("Adult Red Dragon")).json()
     atributos = [t["atributo"] for t in corpo["testes_de_resistencia"]]
-    assert atributos == ["forca"]
+    # Os quatro do SRD, e não os seis: só proficiente aparece.
+    assert atributos == ["destreza", "constituicao", "sabedoria", "carisma"]
 
 
 def test_nome_inexistente_responde_404_em_problem_json(cliente_api):

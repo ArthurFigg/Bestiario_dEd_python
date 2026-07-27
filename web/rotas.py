@@ -6,9 +6,10 @@ mesmo jeito que `api/rotas.py`. A conexão chega pela **mesma dependência**
 via `app.dependency_overrides`, e reaproveitá-la (em vez de abrir uma
 conexão própria) é o que torna o site testável sem `bestiario_combate.db`.
 
-`/relatorios` e `/pesquisar` só existem aqui como destino de link — o
-construtor de análises e a busca com fichas fixadas chegam nas Specs 9b e
-9c. Renderizam o bloco padrão de `base.html`, sem template próprio.
+As três abas vivem aqui: `/relatorios` (construtor de análises, Spec 9b),
+`/pesquisar` (fichas comparadas, Spec 9c) e `/monstros` (a lista, Spec 9a).
+O `_ficha.html` é compartilhado pelas duas últimas — nasceu na 9c, e a aba
+Todos o reaproveita na linha que o usuário abre.
 """
 
 import sqlite3
@@ -20,7 +21,13 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from api.rotas import verificar_banco_sincronizado
-from bestiario.consultas import PRESETS, executar_consulta, vocabulario
+from bestiario.consultas import (
+    PRESETS,
+    buscar_monstro,
+    executar_consulta,
+    resolver_nomes,
+    vocabulario,
+)
 from bestiario.excecoes import FiltroDesconhecido, ValorDeFiltroInvalido
 
 roteador = APIRouter(include_in_schema=False)
@@ -295,11 +302,142 @@ def relatorios(
     return templates.TemplateResponse(request, "relatorios.html", contexto)
 
 
+# Atributo → abreviação impressa na ficha, na ordem do bloco do livro.
+ATRIBUTOS_DA_FICHA = (
+    ("forca", "For"),
+    ("destreza", "Des"),
+    ("constituicao", "Con"),
+    ("inteligencia", "Int"),
+    ("sabedoria", "Sab"),
+    ("carisma", "Car"),
+)
+
+# Categoria de ação → título da seção, como o bloco impresso separa.
+CATEGORIAS_DE_ACAO = (
+    ("action", "Ações"),
+    ("legendary_action", "Ações lendárias"),
+    ("reaction", "Reações"),
+    ("special_ability", "Habilidades especiais"),
+)
+
+# Chave da ficha → filtro da aba Relatórios para onde o selo aponta. São as
+# cinco categorias do que o monstro **é**; o que ele **faz** (condição imposta)
+# sai dos efeitos e usa `impoe`.
+SELOS_DA_FICHA = (
+    ("imunidades_a_dano", "imune_a", "imune a"),
+    ("resistencias_a_dano", "resiste_a", "resiste a"),
+    ("vulnerabilidades_a_dano", "vulneravel_a", "vulnerável a"),
+    ("imunidades_a_condicao", "imune_a_condicao", "imune a"),
+    ("ambientes", "ambiente", ""),
+)
+
+# Acima disso, o modo Completa avisa antes de renderizar: com centenas de
+# fichas inteiras o navegador engasga.
+LIMITE_DE_AVISO_DE_VOLUME = 30
+
+
+def _link_de_selo(filtro, valor, modo):
+    """Selo leva ao relatório filtrado, sempre com `saida=monstros`.
+
+    Sem `saida`, a aba Relatórios abre no padrão dela — comparação por tipo — e
+    o selo "imune a fire" cairia numa comparação dos imunes a fogo em vez da
+    lista de monstros que ele promete.
+    """
+    return "/relatorios?" + urlencode(
+        {filtro: valor, "saida": "monstros", "modo": modo}
+    )
+
+
+def _selos_do_monstro(ficha, modo):
+    selos = []
+    for chave, filtro, prefixo in SELOS_DA_FICHA:
+        for valor in ficha.get(chave) or []:
+            rotulo = f"{prefixo} {valor}".strip()
+            selos.append({"rotulo": rotulo, "url": _link_de_selo(filtro, valor, modo)})
+    return selos
+
+
+def _agrupar_acoes(ficha, modo):
+    """Ações separadas por categoria, como o bloco impresso do livro faz."""
+    grupos = []
+    for categoria, titulo in CATEGORIAS_DE_ACAO:
+        acoes = [a for a in ficha["acoes"] if a["categoria"] == categoria]
+        if not acoes:
+            continue
+        for acao in acoes:
+            # Uma ação com N condições vira N linhas em `efeitos`, todas com a
+            # mesma CD e a mesma área. Um selo de CD e um de área, e um por
+            # condição: repetir a CD faria parecer saves diferentes.
+            condicoes, cd, area = [], None, None
+            for efeito in acao["efeitos"]:
+                if efeito["condicao"]:
+                    condicoes.append(efeito["condicao"])
+                cd = cd or (
+                    f"CD {efeito['cd_resistencia']} {efeito['atributo_resistencia']}"
+                    if efeito["cd_resistencia"]
+                    else None
+                )
+                area = area or (
+                    f"{efeito['area_tipo']} {efeito['area_tamanho']} ft."
+                    if efeito["area_tipo"]
+                    else None
+                )
+            acao["selo_cd"] = cd
+            acao["selo_area"] = area
+            acao["selos_condicao"] = [
+                {"rotulo": c, "url": _link_de_selo("impoe", c, modo)} for c in condicoes
+            ]
+        grupos.append((titulo, acoes))
+    return grupos
+
+
 @roteador.get("/pesquisar")
-def pesquisar(request: Request, modo: str = "resumida"):
+def pesquisar(
+    request: Request,
+    modo: str = "resumida",
+    fixados: str = "",
+    nome: str = "",
+    combinar: str = "todos",
+    conexao: sqlite3.Connection = Depends(verificar_banco_sincronizado),
+):
+    avisos = []
+    nomes = [n.strip() for n in fixados.split(",") if n.strip()]
+    fichas, faltantes = resolver_nomes(conexao, nomes)
+    if faltantes:
+        avisos.append(
+            f"{len(faltantes)} nome(s) não encontrado(s): {', '.join(faltantes)}."
+        )
+
+    # Recorte vindo da aba Relatórios chega como **filtros**, não como lista de
+    # nomes: 325 nomes estourariam a URL, e com filtro o tamanho não depende da
+    # quantidade de resultados.
+    filtros = _filtros_da_query(request)
+    if nome:
+        filtros["nome"] = nome
+    if filtros:
+        try:
+            for linha in executar_consulta(
+                conexao, filtros, modo="lista_monstros", combinar=combinar
+            ):
+                if linha["nome"] not in [f["nome"] for f in fichas]:
+                    fichas.append(buscar_monstro(conexao, linha["nome"]))
+        except (ValorDeFiltroInvalido, FiltroDesconhecido) as erro:
+            avisos.append(f"Filtro ignorado: {erro}")
+
+    if modo == "completa" and len(fichas) > LIMITE_DE_AVISO_DE_VOLUME:
+        avisos.append(
+            f"São {len(fichas)} fichas completas nesta tela. Com esse volume o "
+            "navegador fica lento — considere a exibição Resumida."
+        )
+
+    for ficha in fichas:
+        ficha["selos"] = _selos_do_monstro(ficha, modo)
+        ficha["grupos_de_acoes"] = _agrupar_acoes(ficha, modo)
+        ficha["atributos_da_ficha"] = ATRIBUTOS_DA_FICHA
+
     contexto = _contexto_base(request, "pesquisar", modo)
-    contexto["mensagem"] = "A busca com fichas comparadas chega na próxima spec."
-    return templates.TemplateResponse(request, "base.html", contexto)
+    contexto.update({"fichas": fichas, "avisos": avisos, "nome": nome})
+    return templates.TemplateResponse(request, "pesquisa.html", contexto)
 
 
 def _proximo_sentido(coluna, ordenar_por, sentido):
@@ -315,6 +453,7 @@ def listar_todos_os_monstros(
     ordenar_por: str = "nome",
     sentido: str = "crescente",
     modo: str = "resumida",
+    aberto: str = "",
     conexao: sqlite3.Connection = Depends(verificar_banco_sincronizado),
 ):
     # Mesma dependência da API, e não `obter_conexao`: esta também cobre banco
@@ -347,4 +486,28 @@ def listar_todos_os_monstros(
         }
         for chave, rotulo, num in _COLUNAS_TODOS
     ]
+
+    # No modo Completa, **uma** linha abre a ficha — a que o usuário pediu por
+    # `?aberto=`. Abrir as 325 daria uma página que ninguém lê e que o navegador
+    # sofreria para montar. O `_ficha.html` é o mesmo da aba Pesquisar.
+    contexto["aberto"] = aberto if modo == "completa" else ""
+    contexto["ficha"] = None
+    if contexto["aberto"]:
+        ficha = buscar_monstro(conexao, aberto)
+        if ficha:
+            ficha["selos"] = _selos_do_monstro(ficha, modo)
+            ficha["grupos_de_acoes"] = _agrupar_acoes(ficha, modo)
+            ficha["atributos_da_ficha"] = ATRIBUTOS_DA_FICHA
+        contexto["ficha"] = ficha
+    contexto["url_de_abertura"] = lambda nome: (
+        "?"
+        + urlencode(
+            {
+                "ordenar_por": ordenar_por,
+                "sentido": sentido,
+                "modo": modo,
+                "aberto": "" if nome == aberto else nome,
+            }
+        )
+    )
     return templates.TemplateResponse(request, "todos.html", contexto)
