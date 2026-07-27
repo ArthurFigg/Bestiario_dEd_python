@@ -24,7 +24,7 @@ Bestiario_dEd_python/
 │   ├── consultas.py      # Montagem parametrizada de query + presets
 │   ├── excecoes.py       # Erros de domínio (dimensão/filtro inválido)
 │   ├── relatorios.py     # Relatórios do terminal — delegam a consultas.py
-│   └── modelos.py        # Entidades do domínio (placeholder até a Spec 3)
+│   └── modelos.py        # Vazio — ver "Dívida conhecida" abaixo
 ├── api/                  # Superfície JSON — FastAPI, sem SQL próprio
 ├── web/                  # Superfície HTML — FastAPI + Jinja2, inclui a API
 │   ├── __init__.py
@@ -204,6 +204,13 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
   campos — a perda é só no agregado (coluna de lista, comparação e faixa de
   resumo). A Spec 7a nunca decidiu o caso. Mudar altera número que a API publica,
   então pede reabrir a 7a.
+- [ ] **Dívida conhecida: `bestiario/modelos.py` está vazio** — só docstring. Ela
+  promete que as entidades "ganham corpo a partir da Spec 3", o que nunca
+  aconteceu: a ingestão passou direto por `banco.py`, a camada de consulta devolve
+  dicionários por decisão da Spec 7a, e os schemas Pydantic nasceram em
+  `api/modelos.py`. O arquivo não é importado por ninguém. Duas saídas honestas:
+  apagar, ou dar corpo a ele com as entidades do domínio. Manter como está é a
+  única opção ruim — arquivo que anuncia trabalho inexistente engana quem lê.
 - [x] ~~**SQL espalhado**~~ — **resolvido nas Specs 7b e 7c**: `consultas.py` é o
   único lugar do projeto que lê o banco. Os 7 relatórios e as opções 2 e 3 do menu
   delegam a ele, e `consultar_por_tipo`/`consultar_por_cr` deixaram de existir.
@@ -243,10 +250,14 @@ Igualmente concluídas, embora não mapeadas 1:1 na lista antiga: **Spec 2**
 (migração para a API v2, SRD 2014) e **Spec 5** (extração de efeitos —
 save DC, condição, área; parte lossy isolada).
 
-### Bloco em aberto — Specs 7 a 10
+### Bloco das Specs 7 a 10 — só a 10 segue em aberto
 
-Escritas e aprovadas na Sessão 7 (2026-07-26); a 7a já implementada. A ordem segue a
-regra de camadas do CLAUDE.md global: dados → lógica → apresentação.
+Escritas e aprovadas na Sessão 7 (2026-07-26). **As Specs 7a, 7b, 7c, 8, 9a, 9b e
+9c foram todas implementadas e fechadas em 2026-07-26** — nenhum arquivo de spec
+está pendente em `.claude/specs/`. A Spec 10 (tradução PT-BR) é a única que segue
+aberta, e nunca virou arquivo: existe só como escopo declarado nesta seção. A
+ordem seguida foi a regra de camadas do CLAUDE.md global: dados → lógica →
+apresentação.
 
 7. **Camada de consulta** — dividida em três specs. **7a (`consultas.py`,
    `calculos.py`, `excecoes.py`) concluída em 2026-07-26**: Python puro, testável
@@ -323,11 +334,10 @@ código nunca foi versionado.
    "banco desatualizado, prioridade máxima" foi removido da lista de
    melhorias por já estar resolvido.
 
-**Pendente, decisão do usuário:**
-- `bestiario_combate.db` (4MB) continua *tracked* no git — considerar se vale
-  a pena versionar um binário de dados desse tamanho, ou tratar como artefato
-  gerado (adicionar ao `.gitignore` e documentar como recriar via sync).
-- Dar `git push` dos commits locais.
+**Pendências desta sessão — resolvidas depois:**
+- ~~`bestiario_combate.db` (4MB) continua *tracked* no git~~ — virou artefato
+  regenerável: está no `.gitignore` e se recria pela opção 4 do menu.
+- ~~Dar `git push` dos commits locais~~ — o remote `origin` está configurado e em dia.
 
 **Próximo passo sugerido:** enriquecer o schema com os campos identificados
 (imunidades, resistências, ambientes, etc.) uma coluna por vez.
@@ -458,7 +468,10 @@ a exigir chave é a **Spec 10** (tradução PT-BR), e é lá que o `.env` nasce.
 - Spec 9a (instalada): `jinja2` de produção.
 - Spec 10 (tradução): cliente do modelo + `pydantic-settings` ou `python-dotenv`.
 
-**CI — `.github/workflows/tests.yml`:**
+**CI — planejada, `.github/workflows/tests.yml` NÃO existe no repositório.**
+O conteúdo abaixo é a receita a criar, não um arquivo em uso — nenhum push deste
+projeto jamais rodou em CI. Enquanto não for criado, o único gate real é o
+`pytest` local do `/spec-close`.
 ```yaml
 name: Tests
 on: [push, pull_request]
@@ -592,6 +605,8 @@ comportamento (ainda v1), com os testes; fechar com `/spec-close`. Depois
 seguir a ordem 2→6.
 
 ---
+### Release v0.1.0 — encerramento do bloco de 6 specs (histórico)
+
 **Encerrado em:** 2026-07-22
 **Versao:** v0.1.0
 **Testes:** 65 passando
@@ -700,16 +715,54 @@ aqui.
   filtros `vulneravel_a` e `imune_a_condicao`, ordenação em `/monstros` e
   `dano_medio` na forma enxuta.
 
-**Pendências ao fim da sessão:**
+**Pendências ao fim da sessão — todas resolvidas na Sessão 7:**
 
-- As 7 specs seguem com `Revisão: pendente`. Falta decidir se os verificadores
-  rodam de novo — a 7a foi reescrita, então a revisão dela valeu sobre uma versão
-  que não existe mais. Enquanto pendentes, o gate bloqueia implementação.
+- ~~As 7 specs seguem com `Revisão: pendente`~~ — o `/spec-review` rodou de novo
+  no início da Sessão 7 e as 7 foram aprovadas.
 - **O gate de specs não cobre Bash.** Ele intercepta `Edit` e `Write`, mas o
-  `openapi.yaml` foi alterado por script Python sem nenhum aviso. Vale fechar.
-- O esboço visual aprovado ainda mora em pasta temporária. A Spec 9a precisa
-  copiá-lo para o repositório, ou o CSS e as fontes em base64 se perdem.
+  `openapi.yaml` foi alterado por script Python sem nenhum aviso. **Segue em
+  aberto** — é limitação da skill, não do projeto.
+- ~~O esboço visual aprovado ainda mora em pasta temporária~~ — portado para
+  `web/static/estilo.css` na Spec 9a, com as fontes em base64.
 
-**Próximo passo (retomar aqui):** decidir entre re-rodar o `/spec-review` ou aprovar
-as specs como estão. Aprovadas, a ordem de implementação é
-7a → 7b → 7c → 8 → 9a → 9b → 9c, cada uma fechando com `/spec-close`.
+### Sessão 7 — 2026-07-26 — implementação do bloco inteiro
+
+Sessão de execução: as 7 specs pendentes foram aprovadas no `/spec-review` e
+implementadas na ordem 7a → 7b → 7c → 8 → 9a → 9b → 9c, cada uma fechada com
+`/spec-close`. A **Spec 4 foi reaberta** antes de tudo (Revisão 1) para gravar
+`dano_medio`/`dano_extra_medio` como coluna, em vez de calcular na leitura —
+sem isso a ordenação por dano da API ordenaria só a página já recortada.
+
+A suíte foi de **65 para 307 testes**. O projeto ganhou `api/`, `web/`,
+`consultas.py`, `calculos.py` e `excecoes.py`, e `banco.py` voltou a ter
+responsabilidade única.
+
+**Bug achado pelo usuário, não pelos testes:** no modo Completa a ficha não
+aparecia. O CSS portado do esboço esconde `.so-completa` e só revela sob um
+ancestral com `.modo-completa` — classe que, no mockup, o JavaScript punha.
+Renderizando no servidor, ninguém punha. Vinte testes passavam porque conferiam
+**conteúdo** do HTML, que estava lá, invisível. Lição: teste de string em HTML
+não vê CSS. A análise completa do episódio e de outros 16 defeitos da sessão
+está em `Downloads/melhorias-de-fluxo-bestiario.md`, fora do repositório.
+
+---
+### Release v1.0.0 — site, API e núcleo de consulta
+
+**Encerrado em:** 2026-07-27
+**Versao:** v1.0.0
+**Testes:** 307 passando
+**Specs concluidas:** 13 de 13 (nenhum arquivo pendente em `.claude/specs/`)
+**Commits:** 31
+**Periodo:** 2026-02-08 a 2026-07-27 (12 dias ativos)
+
+**O que a v1.0.0 tem que a v0.1.0 não tinha:** site com três abas, API JSON com
+contrato verificado por teste, e `consultas.py` como único lugar que lê o banco.
+A v0.1.0 era ferramenta de terminal.
+
+**Escopo deixado de fora, de propósito:**
+- **Spec 10 — tradução PT-BR.** Única spec aberta; nunca virou arquivo. É a
+  primeira a exigir segredo (`.env` + chave de modelo). Banco e terminal
+  continuam em inglês por decisão de arquitetura, não por falta de tempo.
+- **`bestiario/modelos.py` vazio** — ver "Dívida conhecida" acima.
+- **Sem CI, sem LICENSE, sem screenshot no README.** Nenhum bloqueia o uso; os
+  três pesam no projeto como portfólio.

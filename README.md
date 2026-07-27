@@ -1,42 +1,81 @@
 # Bestiário de D&D 5e
 
 ![Python](https://img.shields.io/badge/Python-3.13-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688)
+![Testes](https://img.shields.io/badge/testes-307%20passando-brightgreen)
 
-Ferramenta de linha de comando que consome a API pública **Open5e v2** para
-buscar, armazenar e analisar os monstros de Dungeons & Dragons 5ª edição. Os
-dados são normalizados em um banco SQLite local, permitindo consultas e análises
-offline direto do terminal.
+Site, API JSON e ferramenta de terminal para pesquisar e analisar os monstros de
+Dungeons & Dragons 5ª edição. Os dados vêm da API pública **Open5e v2**, são
+normalizados em um banco SQLite local e ficam disponíveis por três superfícies
+diferentes — navegador, HTTP e linha de comando.
 
 ## Sobre
 
-Projeto de estudo focado em consumo de API REST, modelagem de banco relacional e
-análise de dados. O escopo é fixado no documento **SRD 2014** da Open5e
-(`document__key=srd-2014`, ~325 criaturas), o que elimina duplicatas de outras
-fontes e mantém o nome do monstro como chave.
+Projeto de estudo focado em consumo de API REST, modelagem relacional, extração de
+dados de texto livre e projeto de API HTTP. O escopo é fixado no documento
+**SRD 2014** da Open5e (`document__key=srd-2014`, 325 criaturas), o que elimina
+duplicatas de outras fontes e mantém o nome do monstro como chave primária.
 
-O diferencial está na ingestão: cada ataque, efeito, tipo de dano e CD de
-resistência vira um campo consultável — não texto livre. Isso é feito com uma
-**extração híbrida**, que combina os campos estruturados da API v2 com expressões
-regulares sobre a descrição de cada ação.
+Duas ideias organizam o código:
+
+- **Tudo vira dado consultável.** Cada ataque, efeito, tipo de dano e CD de
+  resistência é um campo no banco — não texto. Isso é feito por uma **extração
+  híbrida**, que combina os campos estruturados da API v2 com expressões regulares
+  sobre a descrição de cada ação.
+- **Duas superfícies, um núcleo.** O site (`web/`) e a API (`api/`) **não escrevem
+  SQL**: os dois chamam `bestiario/consultas.py`, que é o único lugar do projeto que
+  lê o banco. A camada de consulta não sabe se quem pergunta é um navegador, um
+  script ou o menu do terminal.
 
 ## Funcionalidades
 
-- **Busca por nome** — consulta um monstro na API Open5e e o registra no banco local.
-- **Filtro por tipo ou nível de desafio (CR)** — consulta o **SQLite primeiro** e só
-  recorre à API como fallback quando não há dado local; cada resultado é rotulado com
-  a origem (`[local]` ou `[API]`).
-- **Sincronização completa** — baixa todos os ~325 monstros do SRD 2014 para o banco,
-  de forma idempotente (re-sincronizar não duplica registros).
-- **Extração estruturada** — ações, ataques (acerto, alcance, dano) e efeitos
-  (CD de resistência, condição imposta, área) são extraídos do texto e normalizados.
-- **Relatórios de análise** — 7 relatórios prontos via pandas + tabulate:
-  - os mais resistentes (por pontos de vida);
-  - ataques mais precisos (por bônus de ataque);
-  - letalidade média por tipo;
-  - monstros por ambiente;
-  - comparação entre tipos (CR, HP e CA médios);
-  - imunidade / resistência / vulnerabilidade a dano;
-  - condições mais impostas e quais monstros as causam.
+### Site (`web/`)
+
+Três abas, HTML renderizado no servidor, visual inspirado nos livros oficiais.
+
+- **Relatórios** — construtor de análises por cliques: dez filtros nomeados em
+  português, com as opções vindas do vocabulário real do banco (e a contagem ao
+  lado), mais uma faixa de nível de desafio. Uma escolha por vez — ver os monstros,
+  ou comparar por uma de sete dimensões. Faixa de resumo sempre visível e seis
+  presets prontos.
+- **Pesquisar** — acumula fichas de monstros lado a lado, sem limite, para comparar.
+  A busca sugere nomes enquanto se digita (consumindo a própria API) e continua
+  funcionando como formulário comum sem JavaScript.
+- **Todos os monstros** — os 325 em tabela, com seis colunas ordenáveis pela URL.
+
+A navegação vai nos dois sentidos: o selo de uma ficha (`imune a fire`) abre o
+relatório já filtrado, e o resultado do relatório volta para a aba Pesquisar como
+filtros.
+
+### API JSON (`api/`)
+
+Seis endpoints somente-leitura em `/api/v1/`, erros em **RFC 7807**
+(`application/problem+json`) e documentação navegável em `/docs`.
+
+| Endpoint | O que devolve |
+|---|---|
+| `GET /api/v1/monstros` | Lista filtrada, ordenada e paginada |
+| `GET /api/v1/monstros/{nome}` | Ficha completa, com ações, ataques e efeitos aninhados |
+| `GET /api/v1/ataques` | Ataques individuais, ordenados por acerto ou dano |
+| `GET /api/v1/comparacoes` | Métricas agregadas por dimensão (tipo, ambiente, condição...) |
+| `GET /api/v1/resumo` | As seis métricas do recorte atual |
+| `GET /api/v1/vocabulario` | Valores válidos de cada filtro, lidos do banco |
+
+O contrato mora em [`openapi.yaml`](openapi.yaml) (OpenAPI 3.1) e é **verificado por
+teste**: caminhos, parâmetros, campos e status codes do esquema gerado pelo código
+são comparados com o arquivo commitado, barrando divergência silenciosa.
+
+### Terminal (`main.py`)
+
+- **Busca por nome** — consulta a Open5e e registra o monstro no banco local.
+- **Filtro por tipo ou nível de desafio** — consulta o **banco primeiro** e só
+  recorre à API quando não há dado local; cada resultado é rotulado com a origem
+  (`[local]` ou `[API]`).
+- **Sincronização completa** — baixa os 325 monstros do SRD 2014 de forma
+  idempotente (re-sincronizar não duplica registros).
+- **Sete relatórios** via pandas + tabulate: mais resistentes, ataques mais
+  precisos, letalidade por tipo, monstros por ambiente, comparação entre tipos,
+  imunidade/resistência/vulnerabilidade a dano e condições mais impostas.
 
 ## Pré-requisitos
 
@@ -57,28 +96,48 @@ uv sync
 
 ## Uso
 
-Inicie o menu interativo:
+### 1. Popular o banco (obrigatório na primeira vez)
+
+O banco `bestiario_combate.db` é um artefato gerado em tempo de execução e não vem
+no repositório. Rode o menu e escolha a **opção 4**:
 
 ```bash
 uv run python main.py
 ```
 
-O menu oferece:
-
 ```
 1. Buscar e registrar por nome
 2. Buscar por tipo (local primeiro, API como fallback)
 3. Buscar por desafio (local primeiro, API como fallback)
-4. Sincronizar base completa no SQL
+4. Sincronizar base completa no SQL     ← comece por aqui
 5. Ver relatórios
 6. Sair
 ```
 
-Na primeira execução, o banco `bestiario_combate.db` é criado automaticamente (vazio).
-Use a **opção 4** para populá-lo com os monstros do SRD 2014 — isso é pré-requisito
-para que os filtros locais e os relatórios tenham dados.
+A sincronização leva alguns minutos e traz 325 monstros, 1476 ações, 542 ataques,
+518 efeitos e as tabelas de lista. Enquanto o banco estiver vazio, o site abre uma
+página explicando o que fazer, em vez de quebrar.
 
-Os relatórios também podem ser gerados de forma independente, sem abrir o menu:
+### 2. Subir o servidor — site e API juntos
+
+```bash
+uv run uvicorn web.app:app --reload
+```
+
+| | |
+|---|---|
+| Site | http://127.0.0.1:8000/ |
+| Todos os monstros | http://127.0.0.1:8000/monstros |
+| API | http://127.0.0.1:8000/api/v1/monstros |
+| Documentação | http://127.0.0.1:8000/docs |
+
+Para subir **só a API**, sem o site:
+
+```bash
+uv run uvicorn api.app:app --reload
+```
+
+### 3. Relatórios no terminal, sem abrir o menu
 
 ```bash
 uv run python -m bestiario.relatorios
@@ -88,19 +147,43 @@ uv run python -m bestiario.relatorios
 
 ```
 Bestiario_dEd_python/
-├── main.py               # Ponto de entrada — menu interativo no terminal
-├── bestiario/            # Pacote principal, organizado por responsabilidade
-│   ├── cliente_api.py    # Comunicação HTTP com a API Open5e v2 (SRD 2014)
-│   ├── banco.py          # Camada de dados: schema SQLite, ingestão e consultas locais
-│   ├── extracao.py       # Extração de ataques e efeitos do texto (regex híbrida)
-│   ├── relatorios.py     # Relatórios de análise (pandas + tabulate)
-│   └── modelos.py        # Entidades do domínio (placeholder)
-├── tests/                # Suíte de testes espelhando o pacote (pytest)
-└── pyproject.toml        # Projeto e dependências gerenciados pelo uv
+├── main.py                 # Ponto de entrada do terminal — menu interativo
+├── openapi.yaml            # Contrato da API, comparado ao gerado pelo código
+├── bestiario/              # Núcleo: domínio, dados e consulta (nada de web aqui)
+│   ├── cliente_api.py      # Comunicação HTTP com a API Open5e v2 (SRD 2014)
+│   ├── banco.py            # Schema SQLite e ingestão
+│   ├── extracao.py         # Extração de ataques e efeitos do texto (regex híbrida)
+│   ├── calculos.py         # Derivações puras: modificador, saves, média de dado
+│   ├── consultas.py        # Único lugar que lê o banco — query parametrizada
+│   ├── excecoes.py         # Erros de domínio (dimensão/filtro inválido)
+│   └── relatorios.py       # Relatórios do terminal — delegam a consultas.py
+├── api/                    # Superfície JSON — FastAPI, sem SQL próprio
+│   ├── rotas.py            # Os seis endpoints de /api/v1/
+│   ├── modelos.py          # Schemas Pydantic das respostas
+│   └── erros.py            # Tradução das exceções de domínio para RFC 7807
+├── web/                    # Superfície HTML — FastAPI + Jinja2, inclui a API
+│   ├── rotas.py            # Raiz, /relatorios, /pesquisar e /monstros
+│   ├── templates/          # base.html, as três abas e o bloco de ficha
+│   └── static/             # CSS com as fontes embutidas e a busca incremental
+├── tests/                  # Suíte pytest espelhando o pacote
+└── pyproject.toml          # Projeto e dependências gerenciados pelo uv
 ```
 
-O arquivo `bestiario_combate.db` é um artefato gerado em tempo de execução (fora do
-controle de versão) — recrie-o pela opção 4 do menu.
+## Banco de dados
+
+Schema relacional normalizado de **8 tabelas**:
+
+- `monstros` — atributos, CA, PV, desafio, sentidos, testes de resistência,
+  deslocamento, alinhamento e idiomas.
+- `acoes` e `ataques` — uma linha por ataque, com acerto, alcance, dado, tipo e
+  média de dano.
+- `efeitos` — CD de resistência, condição imposta e área geométrica.
+- `monstro_interacao_dano`, `monstro_imunidade_condicao`, `monstro_ambiente`,
+  `monstro_pericia` — uma linha por valor, para que contagens e cruzamentos sejam
+  exatos.
+
+Os valores são guardados em **chaves canônicas em inglês** da API (`fire`, `dragon`,
+`prone`): tradução é camada de apresentação, não de armazenamento.
 
 ## Testes
 
@@ -108,8 +191,9 @@ controle de versão) — recrie-o pela opção 4 do menu.
 uv run pytest -v
 ```
 
-A suíte usa fixtures com banco temporário e mocks apenas na fronteira HTTP (a API
-nunca é chamada de verdade nos testes).
+307 testes. A suíte nunca chama a API de verdade nem toca o banco real — mocks
+apenas na fronteira HTTP, e a camada de consulta testada contra SQLite em memória
+com uma fixture própria.
 
 ## Dependências
 
@@ -118,17 +202,43 @@ nunca é chamada de verdade nos testes).
 | requests | `>=2.32,<3.0` | Chamadas HTTP à API Open5e |
 | pandas | `>=2.2,<3.0` | Manipulação de dados nos relatórios |
 | tabulate | `>=0.9,<1.0` | Formatação de tabelas no terminal |
+| fastapi | `>=0.115,<1.0` | Servidor da API JSON e do site |
+| uvicorn | `>=0.32,<1.0` | Servidor ASGI |
+| jinja2 | `>=3.1,<4.0` | Templates HTML renderizados no servidor |
+
+Desenvolvimento: `pytest`, `httpx` (exigida pelo `TestClient`) e `pyyaml` (lê o
+`openapi.yaml` no teste de contrato).
 
 ## Destaques técnicos
 
 - **Extração híbrida** — o array estruturado da API v2 enumera os ataques (acerto e
   alcance confiáveis), enquanto a regex sobre a descrição serve de gabarito para o
-  dano (o dano estruturado da v2 é notoriamente incorreto), com fallback ao
+  dano, cujo campo estruturado da v2 é notoriamente incorreto. Fallback ao
   estruturado quando a regex não casa.
-- **Schema relacional normalizado** — 8 tabelas com `FOREIGN KEY` aplicadas via
-  `PRAGMA foreign_keys = ON`; valores guardados em chaves canônicas em inglês
-  (`fire`, `dragon`, `prone`), deixando a tradução como camada de apresentação futura.
-- **Consulta local-primeiro** — os filtros priorizam o banco e só caem para a API
-  quando necessário, com a origem do dado sinalizada ao usuário.
+- **Contrato verificado por teste** — a implementação é code-first com FastAPI, e um
+  teste compara o OpenAPI gerado com o `openapi.yaml` commitado. Documentação que
+  mente sobre a API quebra o build.
+- **SQL num lugar só** — `consultas.py` monta a query a partir de filtros nomeados
+  com lista branca, valida cada valor contra o vocabulário lido do banco, e ordena,
+  conta e pagina no próprio SQL. Filtro em tabela filha usa subconsulta `EXISTS`, e
+  não `JOIN`, porque `JOIN` multiplicaria linhas e estragaria contagem e média.
+- **Erro se divide por superfície, não por causa** — banco não sincronizado vira
+  página HTML com status 200 no site (é o estado inicial, não uma falha) e 503 em
+  RFC 7807 sob `/api/`. Quem decide é uma função só, registrada pelas duas entradas.
 - **Ingestão idempotente** — `INSERT OR REPLACE` no monstro e limpeza das linhas
   filhas antes da reinserção, respeitando a ordem imposta pelas foreign keys.
+- **Sem etapa de build no front** — HTML no servidor, um arquivo CSS com as fontes
+  (Cinzel e EB Garamond, ambas SIL OFL) embutidas em base64, e um único JavaScript
+  opcional para as sugestões de busca.
+
+## Limitações conhecidas
+
+- A **média de dano agregada** conta apenas o dano primário. O Bite do Adult Red
+  Dragon entra como 19, não 26 — os 2d6 de fogo secundários ficam de fora. O valor
+  por ataque está correto no banco e a API publica os dois campos; a perda existe
+  só nos agregados (coluna de lista, comparação e faixa de resumo).
+- **Extração de efeitos é lossy por natureza** — CD de resistência, condição e área
+  não têm campo estruturado na API v2, então saem 100% de regex sobre a descrição.
+- **Interface em inglês nos valores** — tipos, condições e ambientes aparecem como
+  vêm da API (`dragon`, `prone`, `forest`). A tradução para português está planejada
+  como camada de apresentação, sem tocar o banco.
