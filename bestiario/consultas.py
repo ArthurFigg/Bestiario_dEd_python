@@ -227,6 +227,15 @@ PRESETS = {
 
 # Média dos ataques de um monstro. Subconsulta correlacionada em vez de JOIN pelo
 # mesmo motivo dos filtros: JOIN duplicaria a linha do monstro.
+#
+# **Limitação conhecida, aceita em 2026-07-26:** conta só `dano_medio`, o dano
+# primário. O secundário (`dano_extra_medio`) fica de fora, então o Bite do Adult
+# Red Dragon entra como 19 e não como 26 (2d10+8 perfurante mais 2d6 de fogo).
+# São 122 ataques do SRD com dano extra, o que subestima tipos que somam dano
+# elemental. A Spec 7a diz só "a média das médias dos ataques" e nunca decidiu o
+# caso; o valor por ataque está correto no banco e a API publica os dois campos —
+# some só no agregado. Mudar isso altera número que a API publica, então pede
+# reabrir a 7a, não um remendo aqui.
 _SUB_DANO = (
     "(SELECT ROUND(AVG(a.dano_medio), 2) FROM ataques a "
     "JOIN acoes c ON a.acao_id = c.id WHERE c.monstro_nome = m.nome)"

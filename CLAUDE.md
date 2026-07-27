@@ -138,6 +138,13 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
   de origem `[local]`/`[API]` na saída (Spec 6). Desde a **Spec 7c** quem responde a
   parte local é o núcleo (`consultas.py`), não `banco.py`; a política não mudou.
   Entrada vazia não consulta nada — nem o núcleo, nem a API.
+- [x] **Aba Relatórios** (Spec 9b): construtor de análises por cliques, com os onze
+  filtros nomeados em português e opções vindas do vocabulário do banco (com a
+  contagem ao lado). **Um cartão, uma escolha** — ver os monstros ou comparar por
+  uma das sete dimensões; sem seletor de métrica e sem gráfico, resultado da poda
+  de 2026-07-25. Faixa de resumo sempre visível com as seis métricas, seis presets
+  que preenchem o formulário em vez de abrir tela pronta, aviso em dimensão
+  multivalorada, e valor ou dimensão inválidos viram aviso na tela em vez de 500.
 - [x] **Camada de consulta** (`consultas.py`, Spec 7a): monta query parametrizada a
   partir de filtros nomeados com lista branca, valida valor contra o vocabulário lido
   do banco, ordena e pagina no SQL, conta ignorando paginação, lê a ficha completa de
@@ -184,10 +191,18 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
   aprovado) e a aba "Todos os monstros" de ponta a ponta. Faltam as abas
   Relatórios (Spec 9b) e Pesquisar (Spec 9c); a tradução PT-BR segue empurrada
   para a Spec 10.
+- [ ] **Média de dano ignora o dano secundário** — decisão de 2026-07-26: deixar
+  como está. `_SUB_DANO` em `consultas.py` agrega só `dano_medio`, então o Bite do
+  Adult Red Dragon conta como 19 e não como 26 (2d10+8 perfurante mais 2d6 de
+  fogo). São 122 ataques do SRD com dano extra, o que subestima tipos que somam
+  dano elemental. O valor por ataque está certo no banco e a API publica os dois
+  campos — a perda é só no agregado (coluna de lista, comparação e faixa de
+  resumo). A Spec 7a nunca decidiu o caso. Mudar altera número que a API publica,
+  então pede reabrir a 7a.
 - [x] ~~**SQL espalhado**~~ — **resolvido nas Specs 7b e 7c**: `consultas.py` é o
   único lugar do projeto que lê o banco. Os 7 relatórios e as opções 2 e 3 do menu
   delegam a ele, e `consultar_por_tipo`/`consultar_por_cr` deixaram de existir.
-- [x] ~~**Sem testes automatizados**~~ — **resolvido**: suíte pytest com 256 testes
+- [x] ~~**Sem testes automatizados**~~ — **resolvido**: suíte pytest com 279 testes
   espelhando o pacote (cliente API, banco/ingestão, extração, derivações puras,
   camada de consulta, relatórios e orquestração dos filtros); mocks só na fronteira
   HTTP, e a camada de consulta testada contra SQLite em memória.
@@ -240,7 +255,8 @@ regra de camadas do CLAUDE.md global: dados → lógica → apresentação.
    parâmetros, campos **e status codes** contra o `openapi.yaml`. `api/erros.py`
    expõe `registrar_tratadores(app)`, chamada também por `web/app.py`: incluir o
    roteador leva as rotas, não os tratadores.
-9. **Site** (`web/`) — três abas (Relatórios, Pesquisar, Todos os monstros),
+9. **Site** (`web/`) — três abas. **9b (aba Relatórios) concluída em 2026-07-26.**
+   Três abas (Relatórios, Pesquisar, Todos os monstros),
    HTML renderizado no servidor, visual imitando o livro oficial. **9a concluída
    em 2026-07-26**: moldura (`base.html`), identidade visual portada do esboço
    aprovado (`estilo.css`, fontes Cinzel e EB Garamond em base64) e a aba "Todos

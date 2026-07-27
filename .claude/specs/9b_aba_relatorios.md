@@ -111,3 +111,6 @@ Entrega a aba de análises: os filtros nomeados, a escolha única entre ver a li
 
 - **O que já funciona** → acrescentar a aba de relatórios com construtor de análises, faixa de resumo e presets.
 - **Bloco em aberto — Specs 7 a 10** → marcar 9b como concluída.
+
+---
+**Status:** concluida em 2026-07-26

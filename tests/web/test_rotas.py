@@ -193,3 +193,162 @@ def test_schema_defasado_nao_derruba_o_site_com_500(tmp_path, monkeypatch):
         resposta = cliente.get("/monstros")
     assert resposta.status_code == 200
     assert "sincroniz" in resposta.text.lower()
+
+
+# --- aba Relatórios (Spec 9b) -------------------------------------------------
+
+
+def test_relatorios_sem_parametro_ja_traz_comparacao_por_tipo(cliente_web):
+    """Ninguém encara formulário vazio: a aba abre com resposta na tela."""
+    resposta = cliente_web.get("/relatorios")
+    assert resposta.status_code == 200
+    assert "Comparação por tipo" in resposta.text
+
+
+def test_faixa_de_resumo_aparece_em_toda_resposta(cliente_web):
+    assert "faixa-resumo" in cliente_web.get("/relatorios").text
+
+
+def test_faixa_de_resumo_recalcula_ao_filtrar(cliente_web):
+    # Na fixture só o Adult Red Dragon é imune a fogo; sem filtro são 4.
+    com_filtro = cliente_web.get("/relatorios?imune_a=fire").text
+    sem_filtro = cliente_web.get("/relatorios").text
+    assert "<strong>1</strong>" in com_filtro
+    assert "<strong>4</strong>" in sem_filtro
+
+
+def test_tela_oferece_campo_para_os_onze_filtros_de_recorte(cliente_web):
+    corpo = cliente_web.get("/relatorios").text
+    for chave in (
+        "tipo",
+        "tamanho",
+        "alinhamento",
+        "ambiente",
+        "resiste_a",
+        "imune_a",
+        "vulneravel_a",
+        "imune_a_condicao",
+        "impoe",
+        "relacao",
+    ):
+        assert f'name="{chave}"' in corpo, chave
+    assert 'name="desafio_min"' in corpo and 'name="desafio_max"' in corpo
+
+
+def test_filtro_nome_fica_fora_da_tela_de_proposito(cliente_web):
+    # Busca por trecho pertence à aba Pesquisar; aqui competiria com ela.
+    assert 'name="nome"' not in cliente_web.get("/relatorios").text
+
+
+def test_selects_sao_preenchidos_pelo_vocabulario_do_banco(cliente_web):
+    # A fixture tem 3 tipos (dragon, humanoid, undead) + a opção "qualquer".
+    corpo = cliente_web.get("/relatorios").text
+    assert corpo.count('<option value="dragon"') == 1
+    assert 'value="humanoid"' in corpo and 'value="undead"' in corpo
+
+
+def test_cada_opcao_traz_a_contagem_ao_lado(cliente_web):
+    assert "dragon (2)" in cliente_web.get("/relatorios").text
+
+
+def test_cabecalhos_de_comparacao_dizem_media_de(cliente_web):
+    corpo = cliente_web.get("/relatorios?saida=comparacao&por=tipo").text
+    assert "Média de pontos de vida" in corpo
+
+
+def test_lista_de_monstros_traz_coluna_de_dano_medio(cliente_web):
+    corpo = cliente_web.get("/relatorios?saida=monstros").text
+    assert "Dano médio" in corpo
+
+
+def test_dimensao_multivalorada_avisa_sobre_a_contagem(cliente_web):
+    corpo = cliente_web.get("/relatorios?por=ambiente").text
+    assert "mais de um grupo" in corpo
+
+
+def test_dimensao_de_uma_ocorrencia_so_nao_traz_o_aviso(cliente_web):
+    assert "mais de um grupo" not in cliente_web.get("/relatorios?por=tipo").text
+
+
+def test_dimensao_desconhecida_responde_200_com_aviso(cliente_web):
+    resposta = cliente_web.get("/relatorios?por=cor")
+    assert resposta.status_code == 200
+    assert "não existe" in resposta.text
+
+
+def test_valor_de_filtro_invalido_responde_200_com_aviso(cliente_web):
+    resposta = cliente_web.get("/relatorios?resiste_a=fogo")
+    assert resposta.status_code == 200
+    assert "não é reconhecido" in resposta.text
+
+
+def test_valor_invalido_nao_derruba_os_demais_filtros(cliente_web):
+    # `fogo` é ignorado, mas `tipo=dragon` continua valendo: 2 dragões.
+    corpo = cliente_web.get("/relatorios?resiste_a=fogo&tipo=dragon").text
+    assert "<strong>2</strong>" in corpo
+
+
+def test_filtro_sem_resultado_devolve_200_com_faixa_zerada(cliente_web):
+    corpo = cliente_web.get("/relatorios?tipo=dragon&tamanho=small").text
+    assert "Nenhum monstro atende" in corpo
+    assert "<strong>0</strong>" in corpo
+
+
+def test_modo_completa_sobrevive_a_gerar_um_relatorio(cliente_web):
+    corpo = cliente_web.get("/relatorios?modo=completa&tipo=dragon").text
+    assert 'value="completa"' in corpo
+
+
+def test_link_para_pesquisar_leva_filtros_e_nao_nomes(cliente_web):
+    corpo = cliente_web.get("/relatorios?saida=monstros&tipo=dragon").text
+    assert "/pesquisar?tipo=dragon" in corpo
+    assert "fixados=" not in corpo
+
+
+def test_combinar_qualquer_chega_integro_no_link_para_pesquisar(cliente_web):
+    corpo = cliente_web.get(
+        "/relatorios?saida=monstros&tipo=dragon&combinar=qualquer"
+    ).text
+    assert "combinar=qualquer" in corpo
+
+
+def test_preset_devolve_o_formulario_com_aqueles_parametros(cliente_web):
+    corpo = cliente_web.get("/relatorios").text
+    assert "por=ambiente" in corpo and "saida=comparacao" in corpo
+
+
+def test_preset_de_lista_de_ataques_nao_aparece_na_tela(cliente_web):
+    # `saida` só admite `monstros` e `comparacao`; "Top ataques" ficaria num
+    # estado que esta tela não sabe renderizar.
+    assert "Top ataques" not in cliente_web.get("/relatorios").text
+
+
+def test_web_nao_executa_sql_nem_abre_conexao_propria():
+    from pathlib import Path
+
+    proibidos = (
+        ".execute(",
+        ".executemany(",
+        "SELECT ",
+        "read_sql",
+        ".cursor(",
+        "sqlite3.connect",
+    )
+    diretorio = Path(__file__).resolve().parents[2] / "web"
+    for arquivo in diretorio.rglob("*.py"):
+        texto = arquivo.read_text(encoding="utf-8")
+        for termo in proibidos:
+            assert termo not in texto, f"{arquivo.name} contém {termo!r}"
+
+
+def test_campo_de_desafio_devolve_o_texto_como_digitado(cliente_web):
+    """O formulário não reescreve o que a pessoa digitou: 17 volta 17, não 17.0."""
+    corpo = cliente_web.get("/relatorios?desafio_min=17").text
+    assert 'name="desafio_min"' in corpo and 'value="17"' in corpo
+
+
+def test_cabecalho_da_comparacao_nomeia_a_dimensao(cliente_web):
+    """Agrupando por ambiente, a coluna É o ambiente — "Valor" esconde isso."""
+    corpo = cliente_web.get("/relatorios?por=ambiente").text
+    assert "<th>\n                  Ambiente" in corpo or ">Ambiente" in corpo
+    assert ">Valor<" not in corpo

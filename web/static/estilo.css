@@ -248,6 +248,25 @@
   th a { color: inherit; }
   th a:hover { color: var(--rubrica); }
 
+  /* ---- faixa de resumo (Spec 9b) ----
+     Não existia no esboço: a faixa nasceu da decisão de responder "qual a média
+     de dano desses monstros" sem custar uma decisão ao usuário. Segue a mesma
+     paleta e a mesma tipografia do resto. */
+  .faixa-resumo {
+    display: flex; flex-wrap: wrap; gap: 22px;
+    background: var(--folha); border: 1px solid var(--linha);
+    padding: 10px 16px; margin-bottom: 12px;
+  }
+  .faixa-resumo div { display: flex; flex-direction: column; }
+  .faixa-resumo strong {
+    font-family: var(--display); font-size: 19px; color: var(--rubrica-escura);
+  }
+  .faixa-resumo span {
+    font-size: 12px; letter-spacing: .02em; color: var(--tinta-fraca);
+  }
+
+  .coluna-resultado { flex: 1; min-width: 0; }
+
   .rodape {
     margin-top: 26px; padding-top: 12px; border-top: 1px solid var(--linha);
     text-align: center; font-size: 13px; color: var(--tinta-fraca);

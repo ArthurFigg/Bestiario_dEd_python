@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block titulo %}Relatórios — Bestiário de D&amp;D 5e{% endblock %}
+
+{#
+  Um cartão, uma escolha. A primeira versão desta tela tinha dois cartões e nove
+  caixas de métrica, e foi reprovada: "se tem que pensar para entender, já mostra
+  que está ruim". Não há seletor de métrica nem gráfico — as colunas e a faixa de
+  resumo vêm prontas, porque dado que falta não se resolve com mais um botão.
+#}
+{% block conteudo %}
+<section class="painel" id="p-relatorios">
+
+  <div class="presets">
+    {% for rotulo, url in presets %}
+    <a class="preset" href="{{ url }}">{{ rotulo }}</a>
+    {% endfor %}
+  </div>
+
+  {% for aviso in avisos %}
+  <div class="aviso">{{ aviso }}</div>
+  {% endfor %}
+
+  <div class="relatorio">
+    <div class="coluna">
+      <form class="cartao" method="get" action="/relatorios">
+        <input type="hidden" name="modo" value="{{ modo }}">
+        <h3 class="rubrica">Busca</h3>
+        <div class="cunha curta" style="margin: 0 18px 8px;"></div>
+
+        <div class="corpo-cartao">
+          {% for chave, rotulo in filtros_da_tela %}
+          <div class="campo">
+            <label for="f-{{ chave }}">{{ rotulo }}</label>
+            <select id="f-{{ chave }}" name="{{ chave }}">
+              <option value="">qualquer</option>
+              {# Opções vêm do vocabulário lido do banco, com a contagem ao
+                 lado. Lista fixa no template sairia de sincronia no re-sync. #}
+              {% for valor, total in vocabulario.get(chave, {}).items() %}
+              <option value="{{ valor }}"
+                {%- if filtros.get(chave) == valor %} selected{% endif %}>
+                {{ valor }} ({{ total }})
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endfor %}
+
+          <div class="campo">
+            <label for="f-desafio-de">Desafio</label>
+            <div class="faixa-campo">
+              <span>de</span>
+              <input id="f-desafio-de" name="desafio_min"
+                     value="{{ desafio_min }}">
+              <span>até</span>
+              <input name="desafio_max" aria-label="desafio até"
+                     value="{{ desafio_max }}">
+            </div>
+          </div>
+
+          <div class="combinacao">
+            Mostrar quem atende
+            <select name="combinar" aria-label="combinação dos filtros">
+              <option value="todos"
+                {%- if combinar == 'todos' %} selected{% endif %}>
+                todos os filtros
+              </option>
+              <option value="qualquer"
+                {%- if combinar == 'qualquer' %} selected{% endif %}>
+                qualquer um deles
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="cunha" style="margin: 4px 0 12px;"></div>
+
+        {# A escolha única. `saida` e não `modo`: `modo` já é o botão
+           Resumida/Completa da moldura, e duas semânticas na mesma chave se
+           anulariam. #}
+        <div class="corpo-cartao" style="padding-top: 0;">
+          <label class="opcao">
+            <input type="radio" name="saida" value="monstros"
+              {%- if saida == 'monstros' %} checked{% endif %}>
+            Ver os monstros
+          </label>
+          <label class="opcao">
+            <input type="radio" name="saida" value="comparacao"
+              {%- if saida == 'comparacao' %} checked{% endif %}>
+            Comparar por
+            <select name="por" aria-label="comparar por">
+              {% for chave, rotulo in dimensoes %}
+              <option value="{{ chave }}"
+                {%- if por == chave %} selected{% endif %}>{{ rotulo }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <button class="gerar" type="submit">Gerar</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="coluna-resultado">
+      {# Faixa sempre visível, sem botão que a ligue. #}
+      <div class="faixa-resumo">
+        <div><strong>{{ resumo.monstros }}</strong><span>monstros</span></div>
+        <div>
+          <strong>{{ resumo.media_pontos_vida if resumo.media_pontos_vida is not none else "—" }}</strong>
+          <span>média de pontos de vida</span>
+        </div>
+        <div>
+          <strong>{{ resumo.media_classe_armadura if resumo.media_classe_armadura is not none else "—" }}</strong>
+          <span>média de classe de armadura</span>
+        </div>
+        <div>
+          <strong>{{ resumo.media_desafio if resumo.media_desafio is not none else "—" }}</strong>
+          <span>média de desafio</span>
+        </div>
+        <div>
+          <strong>{{ resumo.media_dano if resumo.media_dano is not none else "—" }}</strong>
+          <span>média de dano</span>
+        </div>
+        <div>
+          <strong>{{ resumo.media_bonus_ataque if resumo.media_bonus_ataque is not none else "—" }}</strong>
+          <span>média de bônus de ataque</span>
+        </div>
+      </div>
+
+      {% if multivalorada %}
+      <p class="nota">
+        Um monstro pode cair em mais de um grupo nesta dimensão, então a soma da
+        coluna Monstros passa do total do conjunto.
+      </p>
+      {% endif %}
+
+      <div class="moldura">
+        <span class="voluta se"><svg><use href="#voluta"/></svg></span>
+        <span class="voluta sd"><svg><use href="#voluta"/></svg></span>
+        <span class="voluta ie"><svg><use href="#voluta"/></svg></span>
+        <span class="voluta id"><svg><use href="#voluta"/></svg></span>
+        <div class="titulo-tabela">
+          <strong>
+            {%- if saida == 'comparacao' %}Comparação por {{ por }}
+            {%- else %}Monstros{% endif -%}
+          </strong>
+          <span class="nota">{{ linhas|length }} linhas</span>
+        </div>
+
+        {% if not linhas %}
+        <div class="aviso">
+          Nenhum monstro atende a esses filtros. Afrouxe algum critério, ou troque
+          a combinação para "qualquer um deles".
+        </div>
+        {% else %}
+        <div class="rolagem">
+          <table>
+            <thead>
+              <tr>
+                {% for chave, rotulo, num in colunas %}
+                <th{% if num %} class="num"{% endif %}>
+                  {%- if chave == 'valor' %}{{ rotulo_da_dimensao }}
+                  {%- else %}{{ rotulo }}{% endif -%}
+                </th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for linha in linhas %}
+              <tr>
+                {% for chave, rotulo, num in colunas %}
+                <td{% if num %} class="num"{% endif %}>
+                  {{ linha.get(chave) if linha.get(chave) is not none else "—" }}
+                </td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if saida == 'monstros' and linhas %}
+      <p class="nota">
+        <a href="{{ url_pesquisar }}">Ver estes monstros lado a lado na aba Pesquisar</a>
+      </p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}
