@@ -173,6 +173,9 @@ monstro **antes** do REPLACE (as FKs ativas exigem apagar filhos antes do pai).
   imunidade/resistência a dano, condições impostas); `relatorios.py` com uma função
   por relatório + orquestradora, executável via menu ("Ver relatórios") ou standalone
   (Spec 6)
+- [x] **Diagrama no README** (2026-08-05): `flowchart` da arquitetura e
+  `erDiagram` das 8 tabelas, entre marcadores geridos pela `/diagrama`. Todo o
+  resto do README pertence à `/readme` — as duas não escrevem na área da outra.
 
 ## O que está incompleto ou pode melhorar
 
@@ -766,3 +769,29 @@ A v0.1.0 era ferramenta de terminal.
 - **`bestiario/modelos.py` vazio** — ver "Dívida conhecida" acima.
 - **Sem CI, sem LICENSE, sem screenshot no README.** Nenhum bloqueia o uso; os
   três pesam no projeto como portfólio.
+
+---
+
+### Sessão 8 — 2026-08-05 — diagrama no README
+
+Sessão curta, fora do ciclo de specs. A skill `/diagrama` estreou no projeto e
+escreveu, entre `<!-- diagrama:inicio -->` e `<!-- diagrama:fim -->` do README,
+um `flowchart` da arquitetura (11 caixas, saídas dos imports reais) e um
+`erDiagram` das 8 tabelas. Commit `686359c`, já no origin.
+
+**Incidente que vale registrar:** logo após a primeira escrita, o README foi
+sobrescrito por uma versão **anterior à Spec 1** (54 linhas, mandando rodar
+`python bestiario.py` e `pip install`). Não foi a skill — o `git diff` tinha
+confirmado `117 insertions(+), 0 deletions`. A causa provável é buffer velho de
+editor gravando por cima, favorecida pelo projeto morar dentro do OneDrive.
+Recuperado com `git checkout HEAD -- README.md`. **É a mesma classe de armadilha
+já registrada para o `bestiario_combate.db`: estado fora do git não avisa quando
+está errado.** Cura: commitar cedo.
+
+**Pendências abertas por esta sessão:**
+- `.gitattributes` com `* text=auto eol=lf` não foi criado de propósito. É
+  desejável, mas num repositório Windows com 31 commits em CRLF ele renormaliza
+  todos os arquivos de texto no próximo `git add -A` — pede commit isolado.
+- O preview de Markdown do VS Code não renderiza os diagramas mesmo com
+  `bierner.markdown-mermaid@1.32.1` instalado e a janela recarregada. Não
+  bloqueia nada (o GitHub renderiza), mas ficou sem diagnóstico.
