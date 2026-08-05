@@ -143,6 +143,123 @@ uv run uvicorn api.app:app --reload
 uv run python -m bestiario.relatorios
 ```
 
+## Arquitetura
+
+<!-- diagrama:inicio -->
+```mermaid
+flowchart LR
+    Open5e[("API Open5e v2<br/>SRD 2014")]
+
+    subgraph ingestao["Ingestão"]
+        cliente_api["cliente_api.py"]
+        extracao["extracao.py"]
+        banco["banco.py"]
+    end
+
+    BD[("SQLite<br/>bestiario_combate.db")]
+
+    subgraph nucleo["Núcleo"]
+        consultas["consultas.py"]
+        calculos["calculos.py"]
+    end
+
+    subgraph superficies["Superfícies"]
+        main["main.py<br/>menu no terminal"]
+        relatorios["relatorios.py"]
+        api["api/rotas.py<br/>JSON /api/v1"]
+        web["web/rotas.py<br/>HTML + Jinja2"]
+    end
+
+    Open5e --> cliente_api
+    cliente_api --> banco
+    extracao --> banco
+    calculos --> banco
+    banco --> BD
+
+    BD --> consultas
+    calculos --> consultas
+
+    consultas --> relatorios
+    consultas --> api
+    consultas --> web
+    consultas --> main
+    relatorios --> main
+    api -. "roteador incluído" .-> web
+    main -. "dispara sync" .-> cliente_api
+```
+
+O dado entra pela Open5e uma vez, é extraído e persistido em SQLite, e daí em
+diante **toda leitura passa por `consultas.py`**: terminal, JSON e HTML são três
+saídas do mesmo núcleo, e nenhuma delas escreve SQL.
+
+### Modelo de dados
+
+```mermaid
+erDiagram
+    monstros ||--o{ acoes : "tem"
+    monstros ||--o{ monstro_interacao_dano : "resiste a"
+    monstros ||--o{ monstro_imunidade_condicao : "é imune a"
+    monstros ||--o{ monstro_ambiente : "habita"
+    monstros ||--o{ monstro_pericia : "é proficiente em"
+    acoes ||--o{ ataques : "desfere"
+    acoes ||--o{ efeitos : "impõe"
+
+    monstros {
+        string nome PK
+        string tipo
+        real nivel_desafio
+        int pontos_vida
+        int classe_armadura
+    }
+    acoes {
+        int id PK
+        string monstro_nome FK
+        string categoria
+        string nome_acao
+    }
+    ataques {
+        int id PK
+        int acao_id FK
+        string nome_ataque
+        int bonus_ataque
+        string dano_dado
+        real dano_medio
+    }
+    efeitos {
+        int id PK
+        int acao_id FK
+        int cd_resistencia
+        string atributo_resistencia
+        string condicao
+    }
+    monstro_interacao_dano {
+        int id PK
+        string monstro_nome FK
+        string tipo_dano
+        string relacao
+    }
+    monstro_imunidade_condicao {
+        int id PK
+        string monstro_nome FK
+        string condicao
+    }
+    monstro_ambiente {
+        int id PK
+        string monstro_nome FK
+        string ambiente
+    }
+    monstro_pericia {
+        int id PK
+        string monstro_nome FK
+        string pericia
+        int bonus
+    }
+```
+
+Os diagramas mostram só os campos que identificam cada entidade — a lista
+completa de colunas vive em `bestiario/banco.py`.
+<!-- diagrama:fim -->
+
 ## Estrutura do projeto
 
 ```
